@@ -1,0 +1,62 @@
+.button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--dsw-alias-border-l3, #d1d5db);
+  border-radius: 6px;
+  color: var(--dsw-alias-label-primary, #111827);
+  background: var(--dsw-alias-bg-layer-2, #fff);
+  cursor: pointer;
+  font: inherit;
+}
+
+.button:hover,
+.linkButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover, #f3f4f6);
+}
+
+.row,
+.settings {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.linkButton {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--dsw-alias-state-business-primary, #2563eb);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.result {
+  padding: 14px;
+  border: 1px solid var(--dsw-alias-border-l2, #e5e7eb);
+  border-radius: 6px;
+  color: var(--dsw-alias-label-secondary, #4b5563);
+  overflow-wrap: anywhere;
+}
+
+.settings {
+  padding: 12px 0 18px;
+  border-bottom: 1px solid var(--dsw-alias-border-l1, rgba(0, 0, 0, 0.05));
+}
+
+.settings p {
+  margin: 4px 0 0;
+  color: var(--dsw-alias-label-secondary, #4b5563);
+  font-size: 13px;
+}
+
+@media (max-width: 520px) {
+  .row,
+  .settings {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

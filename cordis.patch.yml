@@ -1,0 +1,5 @@
+# Install Fabric as one profile plugin. Its node half is intentionally small;
+# the browser half provides the framework service and additive UI surfaces.
+- insert:
+    - id: fabric
+      name: '@cortexkit/fabric'

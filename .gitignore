@@ -1,0 +1,7 @@
+node_modules/
+lib/
+coverage/
+*.tgz
+.pack-probe/
+.pi/
+.DS_Store

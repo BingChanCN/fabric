@@ -1,0 +1,122 @@
+{
+  "name": "@cortexkit/fabric",
+  "version": "0.1.0",
+  "description": "Composable frontend framework for DeepSeek Harness plugins",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./types/client.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./sdk": {
+      "types": "./types/sdk.d.ts",
+      "default": "./lib/sdk.js"
+    },
+    "./ui": {
+      "types": "./types/ui.d.ts",
+      "default": "./lib/ui.js"
+    },
+    "./build": {
+      "types": "./types/build.d.ts",
+      "default": "./lib/build.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ],
+      "platform": "web"
+    }
+  },
+  "workspaces": [
+    "examples/*"
+  ],
+  "scripts": {
+    "build": "npm run clean && npm run typecheck && tsdown",
+    "build:example": "pnpm --filter @cortexkit/fabric-example build",
+    "clean": "node scripts/clean.mjs",
+    "prepare": "tsdown",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run test && npm run build && npm run build:example && npm run client:check && npm run pack:check && npm run profile:check",
+    "client:check": "node scripts/check-client-bundles.mjs",
+    "pack:check": "node scripts/check-pack.mjs",
+    "profile:check": "node scripts/check-dsh-profile.mjs"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-layout": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-sidebar": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tsdown": "0.22.2"
+  },
+  "peerDependenciesMeta": {
+    "tsdown": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "lightningcss": "^1.30.2"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-layout": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-settings": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-sidebar": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
+    "@testing-library/react": "^16.1.0",
+    "@types/node": "^22.20.0",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "^18.3.5",
+    "jsdom": "^26.0.0",
+    "lightningcss": "^1.30.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsdown": "0.22.2",
+    "typescript": "~5.7.2",
+    "vitest": "^4.1.8"
+  },
+  "files": [
+    "lib",
+    "types",
+    "docs",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "deepseek",
+    "dsh",
+    "plugin",
+    "frontend",
+    "framework"
+  ],
+  "license": "MIT"
+}

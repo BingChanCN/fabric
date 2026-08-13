@@ -1,0 +1,16 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  padding: 4px 0 24px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.empty {
+  margin: 0;
+  padding: 28px 0;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  text-align: center;
+}
