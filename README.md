@@ -22,7 +22,7 @@ dsh --profile web
 dsh plugin --profile web add fabric
 ```
 
-Fabric 的浏览器产物是预构建的 `lib/client.js`；DSH 不会现场编译 TypeScript 源码。Windows 上不要用跨盘 `link:D:/...` 安装本地 checkout：pnpm 10.18.3 会在位于其他盘符的 profile 中生成坏链接。本项目的安装验收使用真实 tarball。
+Fabric 的浏览器产物是预构建的 `lib/client.js`；DSH 不会现场编译 TypeScript 源码。tarball 直接传路径即可，不要加 `link:`/`file:` 前缀（`link:` 仅用于目录 checkout）。Windows 上不要用跨盘 `link:D:/...` 安装本地 checkout：pnpm 10.18.3 会在位于其他盘符的 profile 中生成坏链接。本项目的安装验收使用真实 tarball。
 
 ## 下游插件
 

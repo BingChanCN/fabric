@@ -19,11 +19,11 @@ pnpm build:example
 打包并安装到已经包含 Fabric 的 profile：
 
 ```sh
-pnpm --dir examples/hello-fabric pack --pack-destination .pack-probe
-dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/cortexkit-fabric-example-0.1.0.tgz"
+pnpm --dir examples/hello-fabric pack --pack-destination ../../.pack-probe
+dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/hello-fabric-0.1.0.tgz"
 dsh --profile web
 ```
 
-本地安装使用 tarball；Windows 跨盘 `link:` 会受 pnpm 10.18.3 的坏链接问题影响。
+本地安装使用 tarball；tarball 直接传路径（不加 `link:`/`file:` 前缀，`link:` 仅用于目录 checkout）。Windows 跨盘 `link:` 会受 pnpm 10.18.3 的坏链接问题影响。
 
 打开侧栏中的 Fabric，选择 **Hello Fabric**。页面请求 `/fabric-example/status`，设置项写入 `/fabric-example/settings`；两条路由只保存当前进程内的示例状态。
