@@ -16,6 +16,7 @@ export interface WorkbenchInjected {
   openFabric: (pageId?: string) => void
   notify: FabricService['notify']
   dismissNotice: (id: string) => void
+  commands: FabricService['commands']
 }
 
 export type WorkbenchProps =

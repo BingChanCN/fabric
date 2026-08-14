@@ -2,11 +2,13 @@ import { Service } from '@deepseek-ai/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import type {
-  FabricConfigContribution, FabricContribution, FabricModContribution,
-  FabricOverlayContribution, FabricPageContribution, FabricService,
-  FabricSettingsContribution, FabricThemeContribution, FabricThemeService,
-  FabricToolbarContribution,
+  FabricCommandContribution, FabricConfigContribution, FabricContribution,
+  FabricModContribution, FabricOverlayContribution, FabricPageContribution,
+  FabricService, FabricSettingsContribution, FabricThemeContribution,
+  FabricThemeService, FabricToolbarContribution,
 } from './contract.ts'
+import type { FabricCapabilityRegistry } from './capabilities.ts'
+import type { FabricCommandRegistry } from './commands.ts'
 import type { FabricConfigRegistry } from './config-registry.ts'
 import type { FabricController } from './controller.ts'
 import type { FabricThemeManager } from './theme.ts'
@@ -24,6 +26,8 @@ export class FabricRuntimeService extends Service implements FabricService {
     private readonly controller: FabricController,
     readonly theme: FabricThemeManager,
     readonly configs: FabricConfigRegistry,
+    readonly commands: FabricCommandRegistry,
+    readonly capabilities: FabricCapabilityRegistry,
   ) {
     super(ctx, 'fabric')
   }
@@ -44,6 +48,8 @@ export class FabricRuntimeService extends Service implements FabricService {
         return this.registerMod(contribution)
       case 'config':
         return this.registerConfigContribution(contribution)
+      case 'command':
+        return this.registerCommand(contribution)
       default:
         break
     }
@@ -64,6 +70,16 @@ export class FabricRuntimeService extends Service implements FabricService {
 
   registerConfig(definition: Omit<FabricConfigContribution, 'kind'>): () => void {
     return this.registerConfigContribution({ kind: 'config', ...definition })
+  }
+
+  registerCapability<T>(id: string, impl: T): () => void {
+    const unregister = this.capabilities.register(id, impl)
+    this.ctx.effect(() => () => { unregister() }, `fabric: capability ${id}`)
+    return unregister
+  }
+
+  getCapability<T>(id: string): T | undefined {
+    return this.capabilities.get<T>(id)
   }
 
   open(pageId?: string): void {
@@ -123,6 +139,20 @@ export class FabricRuntimeService extends Service implements FabricService {
       ...(contribution.icon !== undefined ? { icon: contribution.icon } : {}),
     })
     this.ctx.effect(() => () => { unregister() }, `fabric: mod ${contribution.id}`)
+    return unregister
+  }
+
+  private registerCommand(contribution: FabricCommandContribution): () => void {
+    const unregister = this.commands.register({
+      id: contribution.id,
+      title: contribution.title,
+      handler: contribution.handler,
+      ...(contribution.order !== undefined ? { order: contribution.order } : {}),
+      ...(contribution.description !== undefined ? { description: contribution.description } : {}),
+      ...(contribution.shortcut !== undefined ? { shortcut: contribution.shortcut } : {}),
+      ...(contribution.pluginId !== undefined ? { pluginId: contribution.pluginId } : {}),
+    })
+    this.ctx.effect(() => () => { unregister() }, `fabric: command ${contribution.id}`)
     return unregister
   }
 

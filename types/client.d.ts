@@ -127,6 +127,17 @@ export interface FabricConfigContribution extends FabricContributionBase {
   schema: FabricConfigSchema
 }
 
+export type FabricCommandTitle = string | (() => string)
+
+export interface FabricCommandContribution extends FabricContributionBase {
+  kind: 'command'
+  title: FabricCommandTitle
+  handler: () => void
+  description?: string
+  shortcut?: string
+  pluginId?: string
+}
+
 export type FabricContribution =
   | FabricPageContribution
   | FabricToolbarContribution
@@ -135,6 +146,48 @@ export type FabricContribution =
   | FabricThemeContribution
   | FabricModContribution
   | FabricConfigContribution
+  | FabricCommandContribution
+
+export interface FabricCommandRecord {
+  readonly id: string
+  readonly title: string
+  readonly description?: string
+  readonly shortcut?: string
+  readonly pluginId?: string
+  readonly order: number
+}
+
+export interface FabricCommandSnapshot {
+  readonly commands: readonly FabricCommandRecord[]
+  readonly paletteOpen: boolean
+  readonly revision: number
+}
+
+export interface FabricCommandService {
+  register(command: {
+    id: string
+    title: FabricCommandTitle
+    handler: () => void
+    description?: string
+    shortcut?: string
+    pluginId?: string
+    order?: number
+  }): () => void
+  execute(id: string): boolean
+  list(): readonly FabricCommandRecord[]
+  openPalette(): void
+  closePalette(): void
+  togglePalette(): void
+  isPaletteOpen(): boolean
+  getSnapshot(): FabricCommandSnapshot
+  subscribe(listener: () => void): () => void
+}
+
+export interface FabricCapabilityService {
+  register<T>(id: string, impl: T): () => void
+  get<T>(id: string): T | undefined
+  list(): readonly string[]
+}
 
 export interface FabricThemeSetOptions {
   priority?: number
@@ -161,7 +214,11 @@ export interface FabricService extends HostObservable<FabricSnapshot> {
   dismissNotice(id: string): void
   readonly theme: FabricThemeService
   readonly configs: FabricConfigRuntime
+  readonly commands: FabricCommandService
+  readonly capabilities: FabricCapabilityService
   registerConfig(definition: Omit<FabricConfigContribution, 'kind'>): () => void
+  registerCapability<T>(id: string, impl: T): () => void
+  getCapability<T>(id: string): T | undefined
 }
 
 declare module '@deepseek-ai/cordis' {

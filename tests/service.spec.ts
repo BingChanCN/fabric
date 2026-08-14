@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest'
 import type {
   FabricOverlayProps, FabricPageProps, FabricSettingsProps, FabricToolbarActionProps,
 } from '../src/client/contract.ts'
+import { FabricCapabilityRegistry } from '../src/client/capabilities.ts'
+import { FabricCommandRegistry } from '../src/client/commands.ts'
 import { FabricConfigRegistry } from '../src/client/config-registry.ts'
 import { FabricController } from '../src/client/controller.ts'
 import { FabricRuntimeService } from '../src/client/service.ts'
@@ -99,8 +101,14 @@ async function bootFabric(declareSlots: boolean): Promise<{
           headers: { 'content-type': 'application/json' },
         }),
       }))
-      pluginCtx.effect(() => () => { configs.dispose() }, 'test-registry')
-      new FabricRuntimeService(pluginCtx, emptyController(), new FabricThemeManager(), configs)
+      const commands = new FabricCommandRegistry()
+      const capabilities = new FabricCapabilityRegistry()
+      pluginCtx.effect(() => () => {
+        configs.dispose()
+        commands.dispose()
+        capabilities.dispose()
+      }, 'test-registry')
+      new FabricRuntimeService(pluginCtx, emptyController(), new FabricThemeManager(), configs, commands, capabilities)
     },
   }).await()
   return { ctx, slots, declare }
@@ -223,6 +231,32 @@ describe('FabricRuntimeService.register', () => {
     await downstream.dispose()
     expect(ctx.fabric.configs.getSnapshot().mods).toEqual([])
     expect(ctx.fabric.configs.getStore('demo-config')).toBeUndefined()
+    await ctx.fiber.dispose()
+  })
+
+  it('releases commands and capabilities with the downstream fiber', async () => {
+    const { ctx } = await bootFabric(true)
+    const downstream = ctx.plugin({
+      name: 'fabric-command-cap',
+      inject: ['fabric'],
+      apply: (pluginCtx: Context) => {
+        pluginCtx.fabric.register({
+          kind: 'command',
+          id: 'demo.ping',
+          title: 'Ping',
+          handler: () => {},
+        })
+        pluginCtx.fabric.registerCapability('demo-cap', { ok: true })
+      },
+    })
+
+    await downstream.await()
+    expect(ctx.fabric.commands.list().map(command => command.id)).toContain('demo.ping')
+    expect(ctx.fabric.getCapability<{ ok: boolean }>('demo-cap')).toEqual({ ok: true })
+
+    await downstream.dispose()
+    expect(ctx.fabric.commands.list().some(command => command.id === 'demo.ping')).toBe(false)
+    expect(ctx.fabric.getCapability('demo-cap')).toBeUndefined()
     await ctx.fiber.dispose()
   })
 })

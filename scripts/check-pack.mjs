@@ -72,15 +72,20 @@ try {
     'lib/sdk.js',
     'lib/ui.js',
     'lib/build.js',
+    'lib/create.js',
     'types/index.d.ts',
     'types/client.d.ts',
     'types/sdk.d.ts',
     'types/ui.d.ts',
     'types/build.d.ts',
+    'types/create.d.ts',
   ]
   await Promise.all(requiredFiles.map(path => requireFile(packageRoot, path)))
 
-  const expectedExports = ['.', './client', './sdk', './ui', './build', './package.json']
+  const expectedExports = ['.', './client', './sdk', './ui', './build', './create', './package.json']
+  if (manifest.bin?.['create-fabric-plugin'] !== './lib/create.js') {
+    fail('bin.create-fabric-plugin must point to ./lib/create.js')
+  }
   for (const key of expectedExports) {
     const entry = manifest.exports?.[key]
     if (entry === undefined) fail(`missing export ${key}`)
@@ -124,7 +129,7 @@ try {
   if (!/register\(contribution:\s*FabricContribution\):\s*\(\)\s*=>\s*void/.test(clientTypes)) {
     fail('types/client.d.ts does not expose FabricService.register')
   }
-  for (const kind of ['page', 'toolbar', 'overlay', 'settings', 'theme', 'mod', 'config']) {
+  for (const kind of ['page', 'toolbar', 'overlay', 'settings', 'theme', 'mod', 'config', 'command']) {
     if (!clientTypes.includes(`kind: '${kind}'`)) fail(`types/client.d.ts is missing the ${kind} contribution`)
   }
   if (!clientTypes.includes('registerConfig')) fail('types/client.d.ts is missing registerConfig')

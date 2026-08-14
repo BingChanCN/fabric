@@ -19,6 +19,18 @@ export default defineConfig([
     outputOptions: { entryFileNames: '[name].js' },
   },
   {
+    name: `${PACKAGE_ID}/create`,
+    entry: { create: 'src/create/index.ts' },
+    outDir: 'lib',
+    format: 'esm',
+    platform: 'node',
+    target: 'node22',
+    dts: false,
+    sourcemap: true,
+    clean: false,
+    outputOptions: { entryFileNames: '[name].js' },
+  },
+  {
     name: `${PACKAGE_ID}/library`,
     entry: {
       sdk: 'src/sdk/index.ts',

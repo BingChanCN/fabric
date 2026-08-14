@@ -50,6 +50,19 @@ describe('Workbench Keep-Alive & Drawer Lifecycle', () => {
       return null
     }
 
+    const commandSnapshot = Object.freeze({ commands: Object.freeze([]), paletteOpen: false, revision: 0 })
+    const commands = {
+      getSnapshot: () => commandSnapshot,
+      subscribe: () => () => {},
+      list: () => commandSnapshot.commands,
+      execute: () => false,
+      openPalette: () => {},
+      closePalette: () => {},
+      togglePalette: () => {},
+      isPaletteOpen: () => false,
+      register: () => () => {},
+    }
+
     const getProps = () => ({
       renderSlot: renderSlot as any,
       useFabric: useFabric as any,
@@ -57,6 +70,7 @@ describe('Workbench Keep-Alive & Drawer Lifecycle', () => {
       openFabric,
       notify,
       dismissNotice,
+      commands: commands as any,
       t,
       useSessions: () => [] as any,
       useWorkspaces: () => [] as any,

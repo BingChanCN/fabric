@@ -42,9 +42,10 @@ Workbench 声明三个子槽：`fabric.page`、`fabric.toolbar.action`、`fabric
 - 全局与工作台级 CSS Token 高特异性注入（`:root, body, body[data-ds-dark-theme]`）；
 - 多插件主题优先级仲裁与宿主暗色模式监听；
 - schema 配置目录、Mod 身份卡与内置 ModMenu 页面；
+- 命令面板、全局快捷键与跨插件 Capability 表；
 - 单调递增 revision。
 
-`ctx.fabric.register(contribution)` 是对 DSH `slots.inject/register` 的薄委托。Cordis service proxy 会把方法的 `this.ctx` 替换为调用方上下文，因此注册 effect 属于下游插件 fiber，而不是 Fabric 自身。两种卸载路径都成立：
+`ctx.fabric.register(contribution)` 对 UI 贡献是 DSH `slots.inject/register` 的薄委托；对 `command` / `mod` / `config` / `theme` 则写入 Fabric 自己的目录。Cordis service proxy 会把方法的 `this.ctx` 替换为调用方上下文，因此注册 effect 属于下游插件 fiber，而不是 Fabric 自身。两种卸载路径都成立：
 
 1. 子槽已声明时，调用方卸载立即移除 ledger 条目。
 2. 子槽尚未声明时，调用方卸载会取消等待，后续声明子槽不会复活该贡献。

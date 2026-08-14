@@ -1,6 +1,6 @@
 {
   "name": "fabric",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Composable frontend framework for DeepSeek Harness plugins",
   "type": "module",
   "main": "lib/index.js",
@@ -26,7 +26,14 @@
       "types": "./types/build.d.ts",
       "default": "./lib/build.js"
     },
+    "./create": {
+      "types": "./types/create.d.ts",
+      "default": "./lib/create.js"
+    },
     "./package.json": "./package.json"
+  },
+  "bin": {
+    "create-fabric-plugin": "./lib/create.js"
   },
   "dsh": {
     "bundle": {
@@ -56,7 +63,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run test && npm run build && npm run build:example && npm run client:check && npm run pack:check && npm run profile:check",
+    "verify": "npm run test && npm run build && npm run build:example && npm run client:check && npm run pack:check && npm run create:check && npm run profile:check",
+    "create:check": "node scripts/check-create.mjs",
     "client:check": "node scripts/check-client-bundles.mjs",
     "pack:check": "node scripts/check-pack.mjs",
     "profile:check": "node scripts/check-dsh-profile.mjs"

@@ -12,7 +12,7 @@ Fabric 是面向 DeepSeek Harness（DSH）客户端插件的组合式前端框�
 pnpm install
 pnpm build
 pnpm pack --pack-destination .pack-probe
-dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/fabric-0.3.0.tgz"
+dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/fabric-0.4.0.tgz"
 dsh --profile web
 ```
 
@@ -53,7 +53,7 @@ export function apply(ctx: ClientContext): void {
 }
 ```
 
-`register()` 接受七类贡献：
+`register()` 接受八类贡献：
 
 | `kind` | 渲染位置 / 作用域 | 说明 / Props |
 |---|---|---|
@@ -64,8 +64,22 @@ export function apply(ctx: ClientContext): void {
 | `theme` | 全局 / 工作台 CSS 变量覆盖 | 高特异性 Token 注入，支持 `priority` 冲突仲裁与暗色响应 |
 | `mod` | 内置 ModMenu 身份卡 | 名称、版本、描述、图标 |
 | `config` | 声明式配置文档 | schema 自动生成表单，经 `/fabric/config/:id` 持久化 |
+| `command` | 命令面板 / 全局快捷键 | `Mod+K` 打开面板；`shortcut` 如 `Mod+Shift+H` |
 
 也可用 `ctx.fabric.registerConfig({ id, title, schema })`。`useFabricConfig(id)` 读取同一份 store：本地先改、GET 不覆盖脏字段、PUT 带 seq，409 时保留本地编辑并重试。
+
+跨插件能力发现：
+
+```ts
+ctx.fabric.registerCapability('hello-status', { ping: () => 'ok' })
+ctx.fabric.getCapability<{ ping: () => string }>('hello-status')?.ping()
+```
+
+新建插件：
+
+```sh
+npx create-fabric-plugin my-plugin
+```
 
 注册项归属于调用它的下游 Cordis fiber。插件卸载或 HMR 时，对应贡献会自动释放；Fabric 不维护第二套组件注册表。
 

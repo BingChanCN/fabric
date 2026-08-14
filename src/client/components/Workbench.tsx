@@ -3,6 +3,7 @@ import {
   IconCheckOutline16, IconCloseOutline16, IconWarningOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { FabricNoticeTone } from '../contract.ts'
+import { CommandPalette } from './CommandPalette.tsx'
 import type { WorkbenchProps } from './props.ts'
 import css from './Workbench.module.css'
 
@@ -20,6 +21,7 @@ export function Workbench({
   openFabric,
   notify,
   dismissNotice,
+  commands,
   t,
 }: WorkbenchProps) {
   const titleId = useId()
@@ -175,6 +177,11 @@ export function Workbench({
           </div>
         ))}
       </div>
+      <CommandPalette
+        commands={commands}
+        placeholder={t('command.paletteHint')}
+        empty={t('command.empty')}
+      />
     </div>
   )
 }

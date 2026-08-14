@@ -13,7 +13,7 @@ export function apply(ctx: ClientContext): void {
     kind: 'mod',
     id: 'hello-fabric',
     name: 'Hello Fabric',
-    version: '0.3.0',
+    version: '0.4.0',
     description: 'Example downstream plugin for the Fabric workbench.',
     icon: '✨',
   })
@@ -24,7 +24,7 @@ export function apply(ctx: ClientContext): void {
     order: 0,
     label: 'Hello Fabric',
     icon: '✨',
-    badge: 'v0.3',
+    badge: 'v0.4',
     keepAlive: true,
     pluginId: 'hello-fabric',
     component: ExamplePage,
@@ -67,6 +67,24 @@ export function apply(ctx: ClientContext): void {
         description: 'Stored under /fabric/config/hello-fabric and kept race-safe.',
         default: false,
       },
+    },
+  })
+
+  ctx.fabric.registerCapability('hello-status', {
+    ping: () => 'ok',
+  })
+
+  ctx.fabric.register({
+    kind: 'command',
+    id: 'hello.notify',
+    title: 'Hello Fabric: Notify',
+    shortcut: 'Mod+Shift+H',
+    pluginId: 'hello-fabric',
+    handler: () => {
+      const status = ctx.fabric.getCapability<{ ping: () => string }>('hello-status')
+      ctx.fabric.notify(status?.ping() === 'ok' ? 'Hello from a command' : 'capability missing', {
+        tone: 'success',
+      })
     },
   })
 }

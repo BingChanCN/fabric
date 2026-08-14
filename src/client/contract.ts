@@ -9,6 +9,8 @@ import type {
   FabricConfigRecord, FabricConfigRuntime, FabricConfigSchema, FabricModRecord,
   FabricThemeRecord,
 } from '../sdk/config.ts'
+import type { FabricCapabilityService } from './capabilities.ts'
+import type { FabricCommandDefinition, FabricCommandService } from './commands.ts'
 
 /** Tone used by the framework notice stack. */
 export type FabricNoticeTone = 'info' | 'success' | 'warning' | 'error'
@@ -145,6 +147,16 @@ export interface FabricConfigContribution extends FabricContributionBase {
   schema: FabricConfigSchema
 }
 
+/** Command palette / shortcut contribution. */
+export interface FabricCommandContribution extends FabricContributionBase {
+  kind: 'command'
+  title: FabricCommandDefinition['title']
+  handler: () => void
+  description?: string
+  shortcut?: string
+  pluginId?: string
+}
+
 /** Contributions accepted by {@link FabricService.register}. */
 export type FabricContribution =
   | FabricPageContribution
@@ -154,6 +166,9 @@ export type FabricContribution =
   | FabricThemeContribution
   | FabricModContribution
   | FabricConfigContribution
+  | FabricCommandContribution
+
+export type { FabricCapabilityService, FabricCommandDefinition, FabricCommandService }
 
 export type {
   FabricConfigRecord, FabricConfigRuntime, FabricConfigSchema, FabricModRecord,
@@ -194,8 +209,16 @@ export interface FabricService extends HostObservable<FabricSnapshot> {
   readonly theme: FabricThemeService
   /** Schema-driven config / mod catalog. */
   readonly configs: FabricConfigRuntime
+  /** Command palette and global shortcuts. */
+  readonly commands: FabricCommandService
+  /** Cross-plugin named capabilities. */
+  readonly capabilities: FabricCapabilityService
   /** Register a persisted config document and auto-render it in settings. */
   registerConfig(definition: Omit<FabricConfigContribution, 'kind'>): () => void
+  /** Register a named capability for the calling plugin fiber's lifetime. */
+  registerCapability<T>(id: string, impl: T): () => void
+  /** Read a previously registered capability, if present. */
+  getCapability<T>(id: string): T | undefined
 }
 
 declare module '@deepseek-ai/cordis' {

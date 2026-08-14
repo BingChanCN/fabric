@@ -5,6 +5,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { createJsonClient } from '../sdk/http.ts'
+import { FabricCapabilityRegistry } from './capabilities.ts'
+import { FabricCommandRegistry } from './commands.ts'
 import { FabricConfigRegistry } from './config-registry.ts'
 import { FabricController } from './controller.ts'
 import type { FabricPageCatalog } from './controller.ts'
@@ -28,6 +30,7 @@ export type {
   FabricSettingsContribution, FabricSettingsOwnerProps, FabricSettingsProps,
   FabricSnapshot, FabricThemeContribution, FabricThemeService, FabricThemeSetOptions,
   FabricToolbarActionOwnerProps, FabricToolbarActionProps, FabricToolbarContribution,
+  FabricCommandContribution, FabricCapabilityService, FabricCommandService,
 } from './contract.ts'
 
 const NS = 'fabric'
@@ -72,18 +75,24 @@ export function apply(ctx: ClientContext): void {
   const controller = new FabricController(catalog)
   const theme = new FabricThemeManager()
   const configs = new FabricConfigRegistry(createJsonClient({ sessionId: () => undefined }))
-  const service = new FabricRuntimeService(ctx, controller, theme, configs)
+  const commands = new FabricCommandRegistry(error => { controller.notify(error.message, { tone: 'error' }) })
+  const capabilities = new FabricCapabilityRegistry()
+  const service = new FabricRuntimeService(ctx, controller, theme, configs, commands, capabilities)
 
   ctx.effect(() => {
     const stop = controller.start()
+    const stopCommands = commands.start()
     const stopPages = catalog.subscribe(() => { configs.syncPages(catalog.read()) })
     configs.syncPages(catalog.read())
     return () => {
       stop()
+      stopCommands()
       stopPages()
       controller.dispose()
       theme.dispose()
       configs.dispose()
+      commands.dispose()
+      capabilities.dispose()
     }
   }, 'fabric: controller lifecycle')
 
@@ -96,6 +105,36 @@ export function apply(ctx: ClientContext): void {
     icon: '▦',
     keepAlive: true,
     component: ModMenu,
+  })
+  service.register({
+    kind: 'command',
+    id: 'fabric.palette',
+    order: -300,
+    title: () => t('command.palette'),
+    shortcut: 'Mod+K',
+    handler: () => { commands.togglePalette() },
+  })
+  service.register({
+    kind: 'command',
+    id: 'fabric.open',
+    order: -200,
+    title: () => t('command.open'),
+    shortcut: 'Mod+Shift+F',
+    handler: () => { controller.open() },
+  })
+  service.register({
+    kind: 'command',
+    id: 'fabric.mods',
+    order: -190,
+    title: () => t('command.mods'),
+    handler: () => { controller.open('fabric:mods') },
+  })
+  service.register({
+    kind: 'command',
+    id: 'fabric.close',
+    order: -180,
+    title: () => t('command.close'),
+    handler: () => { controller.close() },
   })
 
   const actions = {
@@ -126,6 +165,7 @@ export function apply(ctx: ClientContext): void {
       hooks: { fabric: service },
       ...actions,
       dismissNotice: id => { controller.dismissNotice(id) },
+      commands,
     }),
   }, Workbench))
 

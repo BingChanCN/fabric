@@ -17,6 +17,12 @@ export type FabricLocaleKey =
   | 'mods.ungrouped'
   | 'config.saving'
   | 'config.reset'
+  | 'command.palette'
+  | 'command.paletteHint'
+  | 'command.empty'
+  | 'command.open'
+  | 'command.mods'
+  | 'command.close'
 
 export const zh: Record<FabricLocaleKey, string> = {
   name: 'Fabric',
@@ -37,6 +43,12 @@ export const zh: Record<FabricLocaleKey, string> = {
   'mods.ungrouped': '未分组贡献',
   'config.saving': '保存中',
   'config.reset': '还原',
+  'command.palette': '命令面板',
+  'command.paletteHint': '搜索命令…',
+  'command.empty': '没有匹配的命令',
+  'command.open': '打开 Fabric 工作台',
+  'command.mods': '打开插件总览',
+  'command.close': '关闭 Fabric 工作台',
 }
 
 export const en: Record<FabricLocaleKey, string> = {
@@ -58,4 +70,10 @@ export const en: Record<FabricLocaleKey, string> = {
   'mods.ungrouped': 'Ungrouped contributions',
   'config.saving': 'Saving',
   'config.reset': 'Reset',
+  'command.palette': 'Command palette',
+  'command.paletteHint': 'Search commands…',
+  'command.empty': 'No matching commands',
+  'command.open': 'Open Fabric workbench',
+  'command.mods': 'Open mod catalog',
+  'command.close': 'Close Fabric workbench',
 }
