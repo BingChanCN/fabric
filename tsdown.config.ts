@@ -7,9 +7,20 @@ const libraryPlugins = fabricClient({ id: PACKAGE_ID, entry: 'src/ui/index.tsx' 
 
 export default defineConfig([
   {
+    name: `${PACKAGE_ID}/host`,
+    entry: { index: 'src/index.ts' },
+    outDir: 'lib',
+    format: 'esm',
+    platform: 'node',
+    target: 'node22',
+    dts: false,
+    sourcemap: true,
+    clean: false,
+    outputOptions: { entryFileNames: '[name].js' },
+  },
+  {
     name: `${PACKAGE_ID}/library`,
     entry: {
-      index: 'src/index.ts',
       sdk: 'src/sdk/index.ts',
       ui: 'src/ui/index.tsx',
     },

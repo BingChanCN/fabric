@@ -115,3 +115,139 @@ export declare class EventStream<T> implements Observable<EventStreamSnapshot<T>
 }
 
 export declare function createEventStream<T>(options: EventStreamOptions<T>): EventStream<T>
+
+export type JsonRecord = { readonly [key: string]: JsonValue }
+export type FabricConfigFieldType = 'boolean' | 'string' | 'number' | 'select' | 'textarea'
+
+interface FabricConfigFieldBase {
+  title: string
+  description?: string
+}
+export interface FabricBooleanField extends FabricConfigFieldBase {
+  type: 'boolean'
+  default?: boolean
+}
+export interface FabricStringField extends FabricConfigFieldBase {
+  type: 'string'
+  default?: string
+  placeholder?: string
+}
+export interface FabricNumberField extends FabricConfigFieldBase {
+  type: 'number'
+  default?: number
+  min?: number
+  max?: number
+  step?: number
+}
+export interface FabricSelectOption {
+  label: string
+  value: string
+}
+export interface FabricSelectField extends FabricConfigFieldBase {
+  type: 'select'
+  options: readonly FabricSelectOption[]
+  default?: string
+}
+export interface FabricTextareaField extends FabricConfigFieldBase {
+  type: 'textarea'
+  default?: string
+  placeholder?: string
+}
+export type FabricConfigField =
+  | FabricBooleanField
+  | FabricStringField
+  | FabricNumberField
+  | FabricSelectField
+  | FabricTextareaField
+export type FabricConfigSchema = Record<string, FabricConfigField>
+
+export type ConfigStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error'
+export interface ConfigSnapshot<T extends JsonRecord = JsonRecord> {
+  readonly status: ConfigStatus
+  readonly values: T
+  readonly dirty: boolean
+  readonly error: Error | undefined
+  readonly seq: number
+  readonly revision: number
+}
+export interface ConfigDocument<T extends JsonRecord = JsonRecord> {
+  readonly id: string
+  readonly seq: number
+  readonly values: T
+}
+export interface ConfigCache {
+  read(id: string): ConfigDocument | undefined
+  write(id: string, document: ConfigDocument): void
+  clear(id: string): void
+}
+export interface ConfigStoreOptions<T extends JsonRecord> {
+  id: string
+  schema: FabricConfigSchema
+  defaults?: T
+  client?: Pick<JsonClient, 'get' | 'put'>
+  cache?: ConfigCache
+  debounceMs?: number
+  endpoint?: string
+}
+
+export declare function isConfigId(value: string): boolean
+export declare function defaultsFromSchema(schema: FabricConfigSchema): JsonRecord
+export declare function createLocalStorageCache(prefix?: string): ConfigCache
+
+export declare class ConfigStore<T extends JsonRecord = JsonRecord> implements Observable<ConfigSnapshot<T>> {
+  readonly id: string
+  readonly schema: FabricConfigSchema
+  constructor(options: ConfigStoreOptions<T>)
+  getSnapshot(): ConfigSnapshot<T>
+  subscribe(listener: () => void): () => void
+  set(patch: Partial<T>): void
+  reset(): void
+  load(): Promise<ConfigSnapshot<T>>
+  persist(): Promise<ConfigSnapshot<T>>
+  dispose(): void
+}
+export declare function createConfigStore<T extends JsonRecord>(options: ConfigStoreOptions<T>): ConfigStore<T>
+
+export interface FabricPageRecord {
+  readonly id: string
+  readonly label: string
+  readonly order: number
+  readonly pluginId?: string
+}
+export interface FabricConfigRecord {
+  readonly id: string
+  readonly title: string
+  readonly description?: string
+  readonly pluginId?: string
+  readonly order: number
+  readonly schema: FabricConfigSchema
+}
+export interface FabricModRecord {
+  readonly id: string
+  readonly name: string
+  readonly version?: string
+  readonly description?: string
+  readonly icon?: unknown
+  readonly order: number
+}
+export interface FabricThemeRecord {
+  readonly id: string
+  readonly pluginId?: string
+  readonly scope: 'global' | 'workbench'
+  readonly priority: number
+}
+export interface FabricConfigRuntimeSnapshot {
+  readonly configs: readonly FabricConfigRecord[]
+  readonly mods: readonly FabricModRecord[]
+  readonly themes: readonly FabricThemeRecord[]
+  readonly pages: readonly FabricPageRecord[]
+  readonly revision: number
+}
+export interface FabricConfigRuntime {
+  getStore(id: string): ConfigStore | undefined
+  requireStore(id: string): ConfigStore
+  getSnapshot(): FabricConfigRuntimeSnapshot
+  subscribe(listener: () => void): () => void
+}
+export declare function installConfigRuntime(runtime: FabricConfigRuntime | undefined): void
+export declare function getConfigRuntime(): FabricConfigRuntime

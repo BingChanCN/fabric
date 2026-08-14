@@ -4,12 +4,15 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
+import { createJsonClient } from '../sdk/http.ts'
+import { FabricConfigRegistry } from './config-registry.ts'
 import { FabricController } from './controller.ts'
 import type { FabricPageCatalog } from './controller.ts'
 import type { FabricPageEntry, FabricService } from './contract.ts'
 import { FabricRuntimeService } from './service.ts'
 import { FabricThemeManager } from './theme.ts'
 import { Launcher } from './components/Launcher.tsx'
+import { ModMenu } from './components/ModMenu.tsx'
 import { FabricSettings } from './components/Settings.tsx'
 import { Workbench } from './components/Workbench.tsx'
 import type {
@@ -18,10 +21,11 @@ import type {
 import { en, zh } from './locales.ts'
 
 export type {
-  FabricContribution, FabricNotice, FabricNoticeOptions, FabricNoticeTone,
-  FabricOverlayContribution, FabricOverlayOwnerProps, FabricOverlayProps,
-  FabricPageContribution, FabricPageEntry, FabricPageOwnerProps, FabricPageProps,
-  FabricService, FabricSettingsContribution, FabricSettingsOwnerProps, FabricSettingsProps,
+  FabricConfigContribution, FabricContribution, FabricModContribution,
+  FabricNotice, FabricNoticeOptions, FabricNoticeTone, FabricOverlayContribution,
+  FabricOverlayOwnerProps, FabricOverlayProps, FabricPageContribution,
+  FabricPageEntry, FabricPageOwnerProps, FabricPageProps, FabricService,
+  FabricSettingsContribution, FabricSettingsOwnerProps, FabricSettingsProps,
   FabricSnapshot, FabricThemeContribution, FabricThemeService, FabricThemeSetOptions,
   FabricToolbarActionOwnerProps, FabricToolbarActionProps, FabricToolbarContribution,
 } from './contract.ts'
@@ -44,6 +48,7 @@ export function apply(ctx: ClientContext): void {
         icon?: unknown
         badge?: string | number
         keepAlive?: boolean
+        pluginId?: string
       }
       return {
         id: opts.id ?? '',
@@ -52,6 +57,7 @@ export function apply(ctx: ClientContext): void {
         ...(opts.icon !== undefined ? { icon: opts.icon as React.ReactNode } : {}),
         ...(opts.badge !== undefined ? { badge: opts.badge } : {}),
         keepAlive: opts.keepAlive !== false,
+        ...(opts.pluginId !== undefined ? { pluginId: opts.pluginId } : {}),
       }
     }),
     subscribe: (listener) => {
@@ -65,18 +71,33 @@ export function apply(ctx: ClientContext): void {
   }
   const controller = new FabricController(catalog)
   const theme = new FabricThemeManager()
-  const service = new FabricRuntimeService(ctx, controller, theme)
+  const configs = new FabricConfigRegistry(createJsonClient({ sessionId: () => undefined }))
+  const service = new FabricRuntimeService(ctx, controller, theme, configs)
 
   ctx.effect(() => {
     const stop = controller.start()
+    const stopPages = catalog.subscribe(() => { configs.syncPages(catalog.read()) })
+    configs.syncPages(catalog.read())
     return () => {
       stop()
+      stopPages()
       controller.dispose()
       theme.dispose()
+      configs.dispose()
     }
   }, 'fabric: controller lifecycle')
 
   const t = ctx.locale.bind(NS)
+  service.register({
+    kind: 'page',
+    id: 'fabric:mods',
+    order: -1000,
+    label: () => t('mods.title'),
+    icon: '▦',
+    keepAlive: true,
+    component: ModMenu,
+  })
+
   const actions = {
     closeFabric: () => { controller.close() },
     openFabric: (pageId?: string) => { controller.open(pageId) },
@@ -120,6 +141,7 @@ export function apply(ctx: ClientContext): void {
     inject: (): FabricSettingsInjected => ({
       openFabric: actions.openFabric,
       notify: actions.notify,
+      catalog: configs,
     }),
   }, FabricSettings))
 }

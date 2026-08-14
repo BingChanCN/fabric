@@ -2,6 +2,13 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { AsyncResource, AsyncResourceSnapshot, Observable } from '../sdk/index.ts'
+import {
+  getConfigRuntime,
+} from '../sdk/config.ts'
+import type {
+  ConfigSnapshot, ConfigStore, FabricConfigField, FabricConfigSchema, JsonRecord,
+} from '../sdk/config.ts'
+import type { JsonValue } from '../sdk/http.ts'
 import css from './ui.module.css'
 
 /** Z-Index layer contract matching framework elevation standards. */
@@ -423,6 +430,144 @@ export interface DropdownProps {
   items: readonly DropdownItem[]
   placement?: PopoverPlacement
   className?: string
+}
+
+export function useFabricConfig<T extends JsonRecord = JsonRecord>(id: string): {
+  values: T
+  status: ConfigSnapshot<T>['status']
+  dirty: boolean
+  error: Error | undefined
+  seq: number
+  set: (patch: Partial<T>) => void
+  reset: () => void
+  reload: () => Promise<ConfigSnapshot<T>>
+  persist: () => Promise<ConfigSnapshot<T>>
+} {
+  const store = getConfigRuntime().requireStore(id) as ConfigStore<T>
+  const snapshot = useObservable(store)
+  return {
+    values: snapshot.values,
+    status: snapshot.status,
+    dirty: snapshot.dirty,
+    error: snapshot.error,
+    seq: snapshot.seq,
+    set: patch => { store.set(patch) },
+    reset: () => { store.reset() },
+    reload: () => store.load(),
+    persist: () => store.persist(),
+  }
+}
+
+export function ConfigForm({ schema, values, onChange, disabled }: {
+  schema: FabricConfigSchema
+  values: JsonRecord
+  onChange: (patch: JsonRecord) => void
+  disabled?: boolean
+}) {
+  return (
+    <div className={css.configForm}>
+      {Object.entries(schema).map(([key, field]) => (
+        <ConfigFieldControl
+          key={key}
+          id={key}
+          field={field}
+          value={values[key]}
+          disabled={disabled === true}
+          onChange={next => { onChange({ [key]: next }) }}
+        />
+      ))}
+    </div>
+  )
+}
+
+export function BoundConfigForm({ store, disabled }: { store: ConfigStore; disabled?: boolean }) {
+  const snapshot = useObservable(store)
+  return (
+    <ConfigForm
+      schema={store.schema}
+      values={snapshot.values}
+      onChange={patch => { store.set(patch) }}
+      disabled={disabled === true || snapshot.status === 'loading'}
+    />
+  )
+}
+
+function ConfigFieldControl({
+  id, field, value, disabled, onChange,
+}: {
+  id: string
+  field: FabricConfigField
+  value: JsonValue | undefined
+  disabled: boolean
+  onChange: (value: JsonValue) => void
+}) {
+  const controlId = `fabric-config-${id}`
+  return (
+    <label className={css.configField} htmlFor={controlId}>
+      <span className={css.configFieldTitle}>{field.title}</span>
+      {field.description !== undefined && <span className={css.configFieldDescription}>{field.description}</span>}
+      {field.type === 'boolean' && (
+        <input
+          id={controlId}
+          type="checkbox"
+          className={css.configCheckbox}
+          checked={value === true}
+          disabled={disabled}
+          onChange={event => { onChange(event.target.checked) }}
+        />
+      )}
+      {field.type === 'string' && (
+        <input
+          id={controlId}
+          type="text"
+          className={css.configInput}
+          value={typeof value === 'string' ? value : ''}
+          disabled={disabled}
+          placeholder={'placeholder' in field ? field.placeholder : undefined}
+          onChange={event => { onChange(event.target.value) }}
+        />
+      )}
+      {field.type === 'textarea' && (
+        <textarea
+          id={controlId}
+          className={css.configTextarea}
+          value={typeof value === 'string' ? value : ''}
+          disabled={disabled}
+          placeholder={'placeholder' in field ? field.placeholder : undefined}
+          onChange={event => { onChange(event.target.value) }}
+        />
+      )}
+      {field.type === 'number' && (
+        <input
+          id={controlId}
+          type="number"
+          className={css.configInput}
+          value={typeof value === 'number' ? value : 0}
+          disabled={disabled}
+          min={field.min}
+          max={field.max}
+          step={field.step}
+          onChange={event => {
+            const next = event.target.valueAsNumber
+            if (!Number.isNaN(next)) onChange(next)
+          }}
+        />
+      )}
+      {field.type === 'select' && (
+        <select
+          id={controlId}
+          className={css.configInput}
+          value={typeof value === 'string' ? value : ''}
+          disabled={disabled}
+          onChange={event => { onChange(event.target.value) }}
+        >
+          {field.options.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+      )}
+    </label>
+  )
 }
 
 export function Dropdown({ trigger, items, placement = 'bottom', className }: DropdownProps) {

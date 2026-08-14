@@ -2,10 +2,12 @@ import { Service } from '@deepseek-ai/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import type {
-  FabricContribution, FabricOverlayContribution, FabricPageContribution,
-  FabricService, FabricSettingsContribution, FabricThemeContribution,
-  FabricThemeService, FabricToolbarContribution,
+  FabricConfigContribution, FabricContribution, FabricModContribution,
+  FabricOverlayContribution, FabricPageContribution, FabricService,
+  FabricSettingsContribution, FabricThemeContribution, FabricThemeService,
+  FabricToolbarContribution,
 } from './contract.ts'
+import type { FabricConfigRegistry } from './config-registry.ts'
 import type { FabricController } from './controller.ts'
 import type { FabricThemeManager } from './theme.ts'
 
@@ -21,6 +23,7 @@ export class FabricRuntimeService extends Service implements FabricService {
     ctx: Context,
     private readonly controller: FabricController,
     readonly theme: FabricThemeManager,
+    readonly configs: FabricConfigRegistry,
   ) {
     super(ctx, 'fabric')
   }
@@ -34,8 +37,15 @@ export class FabricRuntimeService extends Service implements FabricService {
   }
 
   register(contribution: FabricContribution): () => void {
-    if (contribution.kind === 'theme') {
-      return this.registerTheme(contribution)
+    switch (contribution.kind) {
+      case 'theme':
+        return this.registerTheme(contribution)
+      case 'mod':
+        return this.registerMod(contribution)
+      case 'config':
+        return this.registerConfigContribution(contribution)
+      default:
+        break
     }
 
     const slots = this.ctx.get('slots') as SlotRegistry | undefined
@@ -50,6 +60,10 @@ export class FabricRuntimeService extends Service implements FabricService {
       case 'settings':
         return this.registerSettings(slots, contribution)
     }
+  }
+
+  registerConfig(definition: Omit<FabricConfigContribution, 'kind'>): () => void {
+    return this.registerConfigContribution({ kind: 'config', ...definition })
   }
 
   open(pageId?: string): void {
@@ -77,7 +91,7 @@ export class FabricRuntimeService extends Service implements FabricService {
   }
 
   private registerTheme(contribution: FabricThemeContribution): () => void {
-    const unregister = this.theme.setTokens(
+    const unregisterTheme = this.theme.setTokens(
       contribution.id,
       contribution.tokens,
       {
@@ -85,7 +99,43 @@ export class FabricRuntimeService extends Service implements FabricService {
         ...(contribution.scope !== undefined ? { scope: contribution.scope } : {}),
       },
     )
+    const unregisterCatalog = this.configs.registerTheme({
+      id: contribution.id,
+      ...(contribution.pluginId !== undefined ? { pluginId: contribution.pluginId } : {}),
+      ...(contribution.scope !== undefined ? { scope: contribution.scope } : {}),
+      ...(contribution.priority !== undefined ? { priority: contribution.priority } : {}),
+    })
+    const unregister = (): void => {
+      unregisterTheme()
+      unregisterCatalog()
+    }
     this.ctx.effect(() => () => { unregister() }, `fabric: theme ${contribution.id}`)
+    return unregister
+  }
+
+  private registerMod(contribution: FabricModContribution): () => void {
+    const unregister = this.configs.registerMod({
+      id: contribution.id,
+      name: contribution.name,
+      ...(contribution.order !== undefined ? { order: contribution.order } : {}),
+      ...(contribution.version !== undefined ? { version: contribution.version } : {}),
+      ...(contribution.description !== undefined ? { description: contribution.description } : {}),
+      ...(contribution.icon !== undefined ? { icon: contribution.icon } : {}),
+    })
+    this.ctx.effect(() => () => { unregister() }, `fabric: mod ${contribution.id}`)
+    return unregister
+  }
+
+  private registerConfigContribution(contribution: FabricConfigContribution): () => void {
+    const unregister = this.configs.registerConfig({
+      id: contribution.id,
+      title: contribution.title,
+      schema: contribution.schema,
+      ...(contribution.order !== undefined ? { order: contribution.order } : {}),
+      ...(contribution.description !== undefined ? { description: contribution.description } : {}),
+      ...(contribution.pluginId !== undefined ? { pluginId: contribution.pluginId } : {}),
+    })
+    this.ctx.effect(() => () => { unregister() }, `fabric: config ${contribution.id}`)
     return unregister
   }
 
@@ -98,6 +148,7 @@ export class FabricRuntimeService extends Service implements FabricService {
       icon: contribution.icon,
       badge: contribution.badge,
       keepAlive: contribution.keepAlive,
+      pluginId: contribution.pluginId,
     } as any, contribution.component))
   }
 

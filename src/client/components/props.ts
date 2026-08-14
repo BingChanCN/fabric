@@ -36,6 +36,7 @@ export type LauncherProps =
 export interface FabricSettingsInjected {
   openFabric: (pageId?: string) => void
   notify: FabricService['notify']
+  catalog: FabricService['configs']
 }
 
 export type FabricSettingsProps =

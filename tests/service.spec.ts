@@ -6,9 +6,11 @@ import { describe, expect, it } from 'vitest'
 import type {
   FabricOverlayProps, FabricPageProps, FabricSettingsProps, FabricToolbarActionProps,
 } from '../src/client/contract.ts'
+import { FabricConfigRegistry } from '../src/client/config-registry.ts'
 import { FabricController } from '../src/client/controller.ts'
 import { FabricRuntimeService } from '../src/client/service.ts'
 import { FabricThemeManager } from '../src/client/theme.ts'
+import { createJsonClient } from '../src/sdk/http.ts'
 
 type RuntimeExports = {
   SlotRegistry: new (ctx: Context) => SlotRegistryInstance
@@ -90,7 +92,16 @@ async function bootFabric(declareSlots: boolean): Promise<{
   await ctx.plugin({
     name: 'fabric-service-test',
     inject: ['slots'],
-    apply: (pluginCtx: Context) => { new FabricRuntimeService(pluginCtx, emptyController(), new FabricThemeManager()) },
+    apply: (pluginCtx: Context) => {
+      const configs = new FabricConfigRegistry(createJsonClient({
+        fetch: async () => new Response(JSON.stringify({ id: 'x', seq: 0, values: {} }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      }))
+      pluginCtx.effect(() => () => { configs.dispose() }, 'test-registry')
+      new FabricRuntimeService(pluginCtx, emptyController(), new FabricThemeManager(), configs)
+    },
   }).await()
   return { ctx, slots, declare }
 }
@@ -181,6 +192,37 @@ describe('FabricRuntimeService.register', () => {
     await Promise.resolve()
 
     expect(slots.entries('fabric.page')).toHaveLength(0)
+    await ctx.fiber.dispose()
+  })
+
+  it('releases config and mod catalog entries with the downstream fiber', async () => {
+    const { ctx } = await bootFabric(true)
+    const downstream = ctx.plugin({
+      name: 'fabric-config-mod',
+      inject: ['fabric'],
+      apply: (pluginCtx: Context) => {
+        pluginCtx.fabric.register({
+          kind: 'mod',
+          id: 'demo-mod',
+          name: 'Demo',
+          version: '1.0.0',
+        })
+        pluginCtx.fabric.registerConfig({
+          id: 'demo-config',
+          title: 'Demo',
+          pluginId: 'demo-mod',
+          schema: { enabled: { type: 'boolean', title: 'Enabled', default: false } },
+        })
+      },
+    })
+
+    await downstream.await()
+    expect(ctx.fabric.configs.getSnapshot().mods.map(mod => mod.id)).toEqual(['demo-mod'])
+    expect(ctx.fabric.configs.getStore('demo-config')?.getSnapshot().values.enabled).toBe(false)
+
+    await downstream.dispose()
+    expect(ctx.fabric.configs.getSnapshot().mods).toEqual([])
+    expect(ctx.fabric.configs.getStore('demo-config')).toBeUndefined()
     await ctx.fiber.dispose()
   })
 })

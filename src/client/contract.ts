@@ -5,6 +5,10 @@ import type {
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type {
+  FabricConfigRecord, FabricConfigRuntime, FabricConfigSchema, FabricModRecord,
+  FabricThemeRecord,
+} from '../sdk/config.ts'
 
 /** Tone used by the framework notice stack. */
 export type FabricNoticeTone = 'info' | 'success' | 'warning' | 'error'
@@ -31,6 +35,7 @@ export interface FabricPageEntry {
   readonly icon?: ReactNode
   readonly badge?: string | number
   readonly keepAlive?: boolean
+  readonly pluginId?: string
 }
 
 /** Immutable observable state exposed by `ctx.fabric`. */
@@ -89,6 +94,8 @@ export interface FabricPageContribution extends FabricContributionBase {
   badge?: string | number
   /** Whether to retain component state when navigating away (default: true). */
   keepAlive?: boolean
+  /** Optional owning mod id used by ModMenu grouping. */
+  pluginId?: string
   component: SlotComponent<FabricPageProps>
 }
 
@@ -116,6 +123,26 @@ export interface FabricThemeContribution extends FabricContributionBase {
   priority?: number
   /** Scope of the override. Defaults to 'global'. */
   scope?: 'global' | 'workbench'
+  /** Optional owning mod id used by ModMenu grouping. */
+  pluginId?: string
+}
+
+/** Identity card for a downstream plugin, shown in ModMenu. */
+export interface FabricModContribution extends FabricContributionBase {
+  kind: 'mod'
+  name: string
+  version?: string
+  description?: string
+  icon?: ReactNode
+}
+
+/** Schema-driven config document owned by Fabric's host store. */
+export interface FabricConfigContribution extends FabricContributionBase {
+  kind: 'config'
+  title: string
+  description?: string
+  pluginId?: string
+  schema: FabricConfigSchema
 }
 
 /** Contributions accepted by {@link FabricService.register}. */
@@ -125,6 +152,13 @@ export type FabricContribution =
   | FabricOverlayContribution
   | FabricSettingsContribution
   | FabricThemeContribution
+  | FabricModContribution
+  | FabricConfigContribution
+
+export type {
+  FabricConfigRecord, FabricConfigRuntime, FabricConfigSchema, FabricModRecord,
+  FabricThemeRecord,
+}
 
 /** Options for setting theme tokens via {@link FabricThemeService.setTokens}. */
 export interface FabricThemeSetOptions {
@@ -158,6 +192,10 @@ export interface FabricService extends HostObservable<FabricSnapshot> {
   dismissNotice(id: string): void
   /** Theme management service. */
   readonly theme: FabricThemeService
+  /** Schema-driven config / mod catalog. */
+  readonly configs: FabricConfigRuntime
+  /** Register a persisted config document and auto-render it in settings. */
+  registerConfig(definition: Omit<FabricConfigContribution, 'kind'>): () => void
 }
 
 declare module '@deepseek-ai/cordis' {

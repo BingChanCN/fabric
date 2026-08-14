@@ -39,6 +39,7 @@ const checks = [
       '@deepseek-ai/dsh-client-ui-primitives',
       '@deepseek-ai/dsh-client-ui-slots',
       'react',
+      'react-dom',
       'react/jsx-runtime',
     ],
   },

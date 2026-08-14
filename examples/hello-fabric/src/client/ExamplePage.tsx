@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { createJsonClient, createAsyncResource } from 'fabric/sdk'
 import {
-  AsyncView, Badge, Dropdown, EmptyState, Modal, Page, PageHeader, Popover, Section, useAsyncResource,
+  AsyncView, Badge, Dropdown, EmptyState, Modal, Page, PageHeader, Popover, Section,
+  useAsyncResource, useFabricConfig,
 } from 'fabric/ui'
 import type { FabricPageProps } from 'fabric/client'
 import css from './example.module.css'
@@ -13,6 +14,7 @@ type StatusPayload = {
 
 export function ExamplePage({ sessionId, openFabric, notify }: FabricPageProps) {
   const [modalOpen, setModalOpen] = useState(false)
+  const config = useFabricConfig<{ enabled: boolean }>('hello-fabric')
   const resource = useMemo(() => createAsyncResource<StatusPayload>(async signal => {
     const client = createJsonClient({ sessionId: () => sessionId })
     return client.get<StatusPayload>('/fabric-example/status', { signal })
@@ -32,6 +34,16 @@ export function ExamplePage({ sessionId, openFabric, notify }: FabricPageProps) 
         description="A small downstream plugin using Fabric's page and SDK contracts."
         actions={<button type="button" className={css.button} onClick={loadStatus}>Check session API</button>}
       />
+      <Section title="Persisted config" description="useFabricConfig reads the schema store; edits debounce to /fabric/config/hello-fabric.">
+        <label className={css.row}>
+          <input
+            type="checkbox"
+            checked={config.values.enabled === true}
+            onChange={event => { config.set({ enabled: event.target.checked }) }}
+          />
+          <span>Enabled ({config.dirty ? 'unsaved' : config.status})</span>
+        </label>
+      </Section>
       <Section title="Current session" description="The host supplies this value through the session-maybe standard kit.">
         <div className={css.row}>
           <Badge tone={sessionId === undefined ? 'warning' : 'success'}>

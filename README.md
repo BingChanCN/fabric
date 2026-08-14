@@ -12,7 +12,7 @@ Fabric 是面向 DeepSeek Harness（DSH）客户端插件的组合式前端框�
 pnpm install
 pnpm build
 pnpm pack --pack-destination .pack-probe
-dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/fabric-0.2.0.tgz"
+dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/fabric-0.3.0.tgz"
 dsh --profile web
 ```
 
@@ -53,15 +53,19 @@ export function apply(ctx: ClientContext): void {
 }
 ```
 
-`register()` 接受五类贡献：
+`register()` 接受七类贡献：
 
 | `kind` | 渲染位置 / 作用域 | 说明 / Props |
 |---|---|---|
-| `page` | Fabric 工作台页面 | `FabricPageProps`，支持 `icon`、`badge`、`keepAlive` 保活 |
+| `page` | Fabric 工作台页面 | `FabricPageProps`，支持 `icon`、`badge`、`keepAlive`、`pluginId` |
 | `toolbar` | 工作台标题栏动作 | `FabricToolbarActionProps` |
 | `overlay` | DSH shell 上方的全局扩展层 | `FabricOverlayProps` |
 | `settings` | DSH Plugins 设置页中的 Fabric 区域 | `FabricSettingsProps` |
 | `theme` | 全局 / 工作台 CSS 变量覆盖 | 高特异性 Token 注入，支持 `priority` 冲突仲裁与暗色响应 |
+| `mod` | 内置 ModMenu 身份卡 | 名称、版本、描述、图标 |
+| `config` | 声明式配置文档 | schema 自动生成表单，经 `/fabric/config/:id` 持久化 |
+
+也可用 `ctx.fabric.registerConfig({ id, title, schema })`。`useFabricConfig(id)` 读取同一份 store：本地先改、GET 不覆盖脏字段、PUT 带 seq，409 时保留本地编辑并重试。
 
 注册项归属于调用它的下游 Cordis fiber。插件卸载或 HMR 时，对应贡献会自动释放；Fabric 不维护第二套组件注册表。
 
@@ -86,8 +90,8 @@ ctx.fabric.theme.setTokens('quick-accent', { '--dsw-brand-primary': '#a6e3a1' })
 ## 工具包
 
 - `fabric/client`：`ctx.fabric`、`ctx.fabric.theme`、贡献对象和组件 props 类型。
-- `fabric/sdk`：会话感知 JSON client、可取消的 latest-request-wins 资源、自动重连 SSE。
-- `fabric/ui`：页面排版、`Modal`、`Popover`、`Dropdown`、`Portal`、异步状态、徽标、语义 `tokens` 与 `Z_INDEX` 规范。
+- `fabric/sdk`：会话感知 JSON client、可取消的 latest-request-wins 资源、自动重连 SSE、带 seq 的 `ConfigStore`。
+- `fabric/ui`：页面排版、`Modal`、`Popover`、`Dropdown`、`Portal`、`ConfigForm`、`useFabricConfig`、异步状态、徽标、语义 `tokens` 与 `Z_INDEX` 规范。
 - `fabric/build`：生成 DSH ModuleLoader 客户端闭包的 `tsdown` 预设，并内联 CSS Modules。
 
 完整开发流程见 [插件开发指南](docs/plugin-development.md)，边界与生命周期见 [架构说明](docs/architecture.md)。仓库中的 [hello-fabric](examples/hello-fabric) 是可构建、可安装的最小完整示例。

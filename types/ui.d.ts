@@ -1,5 +1,8 @@
 import type { ReactElement, ReactNode } from 'react'
-import type { AsyncResource, AsyncResourceSnapshot, Observable } from './sdk.d.ts'
+import type {
+  AsyncResource, AsyncResourceSnapshot, ConfigSnapshot, ConfigStore, FabricConfigSchema,
+  JsonRecord, Observable,
+} from './sdk.d.ts'
 
 export declare const Z_INDEX: {
   readonly BASE: 0
@@ -148,3 +151,24 @@ export interface DropdownProps {
   className?: string
 }
 export declare function Dropdown(props: DropdownProps): ReactElement
+
+export declare function useFabricConfig<T extends JsonRecord = JsonRecord>(id: string): {
+  values: T
+  status: ConfigSnapshot<T>['status']
+  dirty: boolean
+  error: Error | undefined
+  seq: number
+  set: (patch: Partial<T>) => void
+  reset: () => void
+  reload: () => Promise<ConfigSnapshot<T>>
+  persist: () => Promise<ConfigSnapshot<T>>
+}
+
+export interface ConfigFormProps {
+  schema: FabricConfigSchema
+  values: JsonRecord
+  onChange: (patch: JsonRecord) => void
+  disabled?: boolean
+}
+export declare function ConfigForm(props: ConfigFormProps): ReactElement
+export declare function BoundConfigForm(props: { store: ConfigStore; disabled?: boolean }): ReactElement

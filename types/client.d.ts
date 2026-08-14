@@ -3,6 +3,7 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {
   HostObservable, PropsRuntime, SlotComponent, SlotLabel,
 } from '@deepseek-ai/dsh-client-ui-slots'
+import type { FabricConfigRuntime, FabricConfigSchema } from './sdk.d.ts'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
@@ -29,6 +30,7 @@ export interface FabricPageEntry {
   readonly icon?: ReactNode
   readonly badge?: string | number
   readonly keepAlive?: boolean
+  readonly pluginId?: string
 }
 
 export interface FabricSnapshot {
@@ -82,6 +84,7 @@ export interface FabricPageContribution extends FabricContributionBase {
   badge?: string | number
   /** Whether to retain component state when navigating away (default: true). */
   keepAlive?: boolean
+  pluginId?: string
   component: SlotComponent<FabricPageProps>
 }
 
@@ -105,6 +108,23 @@ export interface FabricThemeContribution extends FabricContributionBase {
   tokens: Record<string, string>
   priority?: number
   scope?: 'global' | 'workbench'
+  pluginId?: string
+}
+
+export interface FabricModContribution extends FabricContributionBase {
+  kind: 'mod'
+  name: string
+  version?: string
+  description?: string
+  icon?: ReactNode
+}
+
+export interface FabricConfigContribution extends FabricContributionBase {
+  kind: 'config'
+  title: string
+  description?: string
+  pluginId?: string
+  schema: FabricConfigSchema
 }
 
 export type FabricContribution =
@@ -113,6 +133,8 @@ export type FabricContribution =
   | FabricOverlayContribution
   | FabricSettingsContribution
   | FabricThemeContribution
+  | FabricModContribution
+  | FabricConfigContribution
 
 export interface FabricThemeSetOptions {
   priority?: number
@@ -138,6 +160,8 @@ export interface FabricService extends HostObservable<FabricSnapshot> {
   notify(message: string, options?: FabricNoticeOptions): () => void
   dismissNotice(id: string): void
   readonly theme: FabricThemeService
+  readonly configs: FabricConfigRuntime
+  registerConfig(definition: Omit<FabricConfigContribution, 'kind'>): () => void
 }
 
 declare module '@deepseek-ai/cordis' {

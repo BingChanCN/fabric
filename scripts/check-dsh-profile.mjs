@@ -149,6 +149,28 @@ async function smokeWeb(environment) {
     const updated = await readJson(await fetch(statusUrl, { signal: AbortSignal.timeout(15_000) }), 'updated example status route')
     if (updated.enabled !== true) fail(`example route state did not persist: ${JSON.stringify(updated)}`)
 
+    const configUrl = new URL('/fabric/config/hello-fabric', baseUrl)
+    const initialConfig = await readJson(await fetch(configUrl, { signal: AbortSignal.timeout(15_000) }), 'fabric config get')
+    if (initialConfig.id !== 'hello-fabric' || typeof initialConfig.seq !== 'number') {
+      fail(`fabric config GET returned an unexpected payload: ${JSON.stringify(initialConfig)}`)
+    }
+    const written = await readJson(await fetch(configUrl, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ seq: initialConfig.seq, values: { enabled: true } }),
+      signal: AbortSignal.timeout(15_000),
+    }), 'fabric config put')
+    if (written.seq !== initialConfig.seq + 1 || written.values?.enabled !== true) {
+      fail(`fabric config PUT returned an unexpected payload: ${JSON.stringify(written)}`)
+    }
+    const conflict = await fetch(configUrl, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ seq: initialConfig.seq, values: { enabled: false } }),
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (conflict.status !== 409) fail(`fabric config stale PUT returned HTTP ${String(conflict.status)}`)
+
     return baseUrl
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error)

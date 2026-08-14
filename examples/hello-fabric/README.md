@@ -22,7 +22,7 @@ pnpm build:example
 
 ```sh
 pnpm --dir examples/hello-fabric pack --pack-destination ../../.pack-probe
-dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/hello-fabric-0.2.0.tgz"
+dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/hello-fabric-0.3.0.tgz"
 dsh --profile web
 ```
 

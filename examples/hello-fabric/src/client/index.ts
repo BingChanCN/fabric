@@ -7,16 +7,26 @@ import { RefreshAction } from './RefreshAction.tsx'
 /** Required service: Fabric must be mounted before this client fiber starts. */
 export const inject = ['fabric'] as const
 
-/** Minimal downstream plugin: one page, one toolbar action, and one settings entry. */
+/** Minimal downstream plugin: page, toolbar, settings, theme, mod card, and config schema. */
 export function apply(ctx: ClientContext): void {
+  ctx.fabric.register({
+    kind: 'mod',
+    id: 'hello-fabric',
+    name: 'Hello Fabric',
+    version: '0.3.0',
+    description: 'Example downstream plugin for the Fabric workbench.',
+    icon: '✨',
+  })
+
   ctx.fabric.register({
     kind: 'page',
     id: 'hello',
     order: 0,
     label: 'Hello Fabric',
     icon: '✨',
-    badge: 'v0.2',
+    badge: 'v0.3',
     keepAlive: true,
+    pluginId: 'hello-fabric',
     component: ExamplePage,
   })
 
@@ -37,10 +47,26 @@ export function apply(ctx: ClientContext): void {
   ctx.fabric.register({
     kind: 'theme',
     id: 'hello-fabric-theme',
+    pluginId: 'hello-fabric',
     priority: 1,
     scope: 'workbench',
     tokens: {
       '--dsw-alias-brand-primary': '#2563eb',
+    },
+  })
+
+  ctx.fabric.registerConfig({
+    id: 'hello-fabric',
+    title: 'Hello Fabric',
+    description: 'Persisted through Fabric\'s host config store.',
+    pluginId: 'hello-fabric',
+    schema: {
+      enabled: {
+        type: 'boolean',
+        title: 'Enable example extras',
+        description: 'Stored under /fabric/config/hello-fabric and kept race-safe.',
+        default: false,
+      },
     },
   })
 }

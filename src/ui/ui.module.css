@@ -328,6 +328,57 @@
   white-space: nowrap;
 }
 
+.configForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.configField {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.configFieldTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-primary, #111827);
+}
+
+.configFieldDescription {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--dsw-alias-label-secondary, #4b5563);
+}
+
+.configInput,
+.configTextarea {
+  width: 100%;
+  max-width: 360px;
+  padding: 7px 10px;
+  border: 1px solid var(--dsw-alias-border-l3, #d1d5db);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-elevated, #fff);
+  color: var(--dsw-alias-label-primary, #111827);
+  font: inherit;
+  font-size: 13px;
+}
+
+.configTextarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.configCheckbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 680px) {

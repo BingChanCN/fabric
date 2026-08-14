@@ -20,6 +20,7 @@ function samePages(left: readonly FabricPageEntry[], right: readonly FabricPageE
       && page.icon === other.icon
       && page.badge === other.badge
       && page.keepAlive === other.keepAlive
+      && page.pluginId === other.pluginId
   })
 }
 
@@ -37,6 +38,7 @@ function freezePages(pages: readonly FabricPageEntry[]): readonly FabricPageEntr
       ...(page.icon !== undefined ? { icon: page.icon } : {}),
       ...(page.badge !== undefined ? { badge: page.badge } : {}),
       keepAlive: page.keepAlive !== false,
+      ...(page.pluginId !== undefined ? { pluginId: page.pluginId } : {}),
     }))
   }
   normalized.sort((left, right) => left.order - right.order || left.id.localeCompare(right.id))

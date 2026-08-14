@@ -1,6 +1,6 @@
 # Fabric 插件开发
 
-本指南从一个空目录建立可安装的 Fabric 下游插件。示例基于 DSH `0.1.0-rc.6`、Fabric `0.2.0` 和 `tsdown 0.22.2`。
+本指南从一个空目录建立可安装的 Fabric 下游插件。示例基于 DSH `0.1.0-rc.6`、Fabric `0.3.0` 和 `tsdown 0.22.2`。
 
 ## 1. 包清单
 
@@ -28,14 +28,14 @@
     }
   },
   "peerDependencies": {
-    "fabric": "^0.2.0",
+    "fabric": "^0.3.0",
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
     "react": "^18.2.0"
   },
   "devDependencies": {
-    "fabric": "^0.2.0",
+    "fabric": "^0.3.0",
     "tsdown": "0.22.2",
     "typescript": "~5.7.2"
   },
@@ -110,12 +110,30 @@ ctx.fabric.register({ kind: 'settings', id: 'jobs-settings', component: JobsSett
 ctx.fabric.register({
   kind: 'theme',
   id: 'jobs-theme',
+  pluginId: 'jobs',
   priority: 5,
   tokens: { '--dsw-alias-brand-primary': '#10b981' },
+})
+ctx.fabric.register({
+  kind: 'mod',
+  id: 'jobs',
+  name: 'Jobs',
+  version: '0.1.0',
+  description: 'Inspect running jobs',
+})
+ctx.fabric.registerConfig({
+  id: 'jobs',
+  title: 'Jobs',
+  pluginId: 'jobs',
+  schema: {
+    pollMs: { type: 'number', title: 'Refresh interval (ms)', default: 4000, min: 500 },
+  },
 })
 ```
 
 对应 props 类型为 `FabricToolbarActionProps`、`FabricOverlayProps`、`FabricSettingsProps`。不要直接注册 `fabric.*` DSH slot；`ctx.fabric.register()` 负责声明等待和调用方生命周期。
+
+`registerConfig` 会进入 Fabric 设置页和内置 ModMenu，并由 Host `/fabric/config/:id` 持久化。页面里用 `useFabricConfig('jobs')` 读写同一份 store；远程 GET 不会覆盖尚未保存的本地修改。
 
 ## 4. 同源数据
 

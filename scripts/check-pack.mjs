@@ -124,9 +124,10 @@ try {
   if (!/register\(contribution:\s*FabricContribution\):\s*\(\)\s*=>\s*void/.test(clientTypes)) {
     fail('types/client.d.ts does not expose FabricService.register')
   }
-  for (const kind of ['page', 'toolbar', 'overlay', 'settings', 'theme']) {
+  for (const kind of ['page', 'toolbar', 'overlay', 'settings', 'theme', 'mod', 'config']) {
     if (!clientTypes.includes(`kind: '${kind}'`)) fail(`types/client.d.ts is missing the ${kind} contribution`)
   }
+  if (!clientTypes.includes('registerConfig')) fail('types/client.d.ts is missing registerConfig')
 
   const build = await readFile(join(packageRoot, 'lib/build.js'), 'utf8')
   if (!build.includes('runtime import') || !build.includes('fabric/client')) {

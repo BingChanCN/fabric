@@ -37,10 +37,11 @@ Workbench 声明三个子槽：`fabric.page`、`fabric.toolbar.action`、`fabric
 浏览器入口同步构造 `FabricRuntimeService`，它作为 Cordis `Service` 暴露为 `ctx.fabric`。控制器维护不可变快照，同时内建 `FabricThemeManager` 提供 `ctx.fabric.theme` 主题服务：
 
 - 工作台开关状态；
-- 当前页面与 slot ledger 派生的页面目录（含 `icon`、`badge`、`keepAlive` 元数据）；
+- 当前页面与 slot ledger 派生的页面目录（含 `icon`、`badge`、`keepAlive`、`pluginId` 元数据）；
 - 通知队列；
 - 全局与工作台级 CSS Token 高特异性注入（`:root, body, body[data-ds-dark-theme]`）；
 - 多插件主题优先级仲裁与宿主暗色模式监听；
+- schema 配置目录、Mod 身份卡与内置 ModMenu 页面；
 - 单调递增 revision。
 
 `ctx.fabric.register(contribution)` 是对 DSH `slots.inject/register` 的薄委托。Cordis service proxy 会把方法的 `this.ctx` 替换为调用方上下文，因此注册 effect 属于下游插件 fiber，而不是 Fabric 自身。两种卸载路径都成立：
@@ -64,11 +65,13 @@ Fabric 的单元测试使用真实 Cordis `Service` 和 DSH rc.6 发布的 `Slot
 
 `AsyncResource` 提供可取消、latest-request-wins 的加载状态；过期响应不能覆盖新请求。`EventStream` 包装标准 `EventSource`，使用有界指数退避，并在成功连接后重置退避级别。
 
+`ConfigStore` 是配置文档的客户端状态机：先写本地、标记脏字段，远程 GET 不得覆盖脏字段；PUT 携带 `seq`，409 时吸收服务端 seq 并保留本地编辑后重试。可选 `localStorage` 缓存避免首屏闪默认值。
+
 这些库不依赖 Cordis 或 DSH 私有对象，可以打入下游客户端 bundle。
 
 ## 构建与分发
 
-Fabric 是带 `dsh.bundle.patch` 的 profile bundle。Node 入口当前为空，客户端能力全部位于预构建的 `lib/client.js`。
+Fabric 是带 `dsh.bundle.patch` 的 profile bundle。Node 入口注册 `/fabric/config` 前缀路由，把配置文档持久化到 `$DSH_HOME/fabric/config/<id>.json`。客户端能力位于预构建的 `lib/client.js`。
 
 `fabric/build` 生成 DSH 要求的 `window.__ModuleLoader__.load(...)` 闭包：
 

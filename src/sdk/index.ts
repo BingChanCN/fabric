@@ -1,5 +1,17 @@
 export type { Observable } from './observable.ts'
 export {
+  ConfigStore, createConfigStore, createLocalStorageCache, defaultsFromSchema,
+  getConfigRuntime, installConfigRuntime, isConfigId,
+} from './config.ts'
+export type {
+  ConfigCache, ConfigDocument, ConfigSnapshot, ConfigStatus, ConfigStoreOptions,
+  FabricBooleanField, FabricConfigField, FabricConfigFieldType, FabricConfigRecord,
+  FabricConfigRuntime, FabricConfigRuntimeSnapshot, FabricConfigSchema,
+  FabricModRecord, FabricNumberField, FabricPageRecord, FabricSelectField,
+  FabricSelectOption, FabricStringField, FabricTextareaField, FabricThemeRecord,
+  JsonRecord,
+} from './config.ts'
+export {
   FabricHttpError, createJsonClient,
 } from './http.ts'
 export type {
