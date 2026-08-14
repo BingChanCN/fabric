@@ -42,25 +42,25 @@ export const inject = ['slots', 'locale']
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'fabric: dictionaries')
 
+  let service: FabricRuntimeService
+
   const catalog: FabricPageCatalog = {
     read: () => ctx.slots.entries('fabric.page').map((entry): FabricPageEntry => {
       const opts = entry.options as {
         id?: string
         order?: number
         label?: unknown
-        icon?: unknown
-        badge?: string | number
-        keepAlive?: boolean
-        pluginId?: string
       }
+      const id = opts.id ?? ''
+      const meta = service?.getPageMetadata(id)
       return {
-        id: opts.id ?? '',
-        order: opts.order ?? 0,
-        label: resolveSlotLabel(opts.label as Parameters<typeof resolveSlotLabel>[0]) ?? opts.id ?? '',
-        ...(opts.icon !== undefined ? { icon: opts.icon as React.ReactNode } : {}),
-        ...(opts.badge !== undefined ? { badge: opts.badge } : {}),
-        keepAlive: opts.keepAlive !== false,
-        ...(opts.pluginId !== undefined ? { pluginId: opts.pluginId } : {}),
+        id,
+        order: opts.order ?? meta?.order ?? 0,
+        label: resolveSlotLabel(opts.label as Parameters<typeof resolveSlotLabel>[0]) ?? (typeof meta?.label === 'function' ? meta.label() : meta?.label) ?? id,
+        ...(meta?.icon !== undefined ? { icon: meta.icon as React.ReactNode } : {}),
+        ...(meta?.badge !== undefined ? { badge: meta.badge } : {}),
+        keepAlive: meta?.keepAlive !== false,
+        ...(meta?.pluginId !== undefined ? { pluginId: meta.pluginId } : {}),
       }
     }),
     subscribe: (listener) => {
@@ -77,7 +77,7 @@ export function apply(ctx: ClientContext): void {
   const configs = new FabricConfigRegistry(createJsonClient({ sessionId: () => undefined }))
   const commands = new FabricCommandRegistry(error => { controller.notify(error.message, { tone: 'error' }) })
   const capabilities = new FabricCapabilityRegistry()
-  const service = new FabricRuntimeService(ctx, controller, theme, configs, commands, capabilities)
+  service = new FabricRuntimeService(ctx, controller, theme, configs, commands, capabilities)
 
   ctx.effect(() => {
     const stop = controller.start()

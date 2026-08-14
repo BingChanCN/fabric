@@ -21,6 +21,8 @@ import type { FabricThemeManager } from './theme.ts'
  * downstream plugin fiber rather than Fabric's own fiber.
  */
 export class FabricRuntimeService extends Service implements FabricService {
+  private readonly pageMetadata = new Map<string, Omit<FabricPageContribution, 'component'>>()
+
   constructor(
     ctx: Context,
     private readonly controller: FabricController,
@@ -30,6 +32,10 @@ export class FabricRuntimeService extends Service implements FabricService {
     readonly capabilities: FabricCapabilityRegistry,
   ) {
     super(ctx, 'fabric')
+  }
+
+  getPageMetadata(id: string): Omit<FabricPageContribution, 'component'> | undefined {
+    return this.pageMetadata.get(id)
   }
 
   getSnapshot(): ReturnType<FabricService['getSnapshot']> {
@@ -170,16 +176,30 @@ export class FabricRuntimeService extends Service implements FabricService {
   }
 
   private registerPage(slots: SlotRegistry, contribution: FabricPageContribution): () => void {
-    return slots.inject('fabric.page', () => slots.register({
+    this.pageMetadata.set(contribution.id, {
+      kind: 'page',
+      id: contribution.id,
+      label: contribution.label,
+      ...(contribution.order !== undefined ? { order: contribution.order } : {}),
+      ...(contribution.icon !== undefined ? { icon: contribution.icon } : {}),
+      ...(contribution.badge !== undefined ? { badge: contribution.badge } : {}),
+      ...(contribution.keepAlive !== undefined ? { keepAlive: contribution.keepAlive } : {}),
+      ...(contribution.pluginId !== undefined ? { pluginId: contribution.pluginId } : {}),
+    })
+
+    const unregisterSlot = slots.inject('fabric.page', () => slots.register({
       name: 'fabric.page',
       id: contribution.id,
       ...(contribution.order === undefined ? {} : { order: contribution.order }),
       label: contribution.label,
-      icon: contribution.icon,
-      badge: contribution.badge,
-      keepAlive: contribution.keepAlive,
-      pluginId: contribution.pluginId,
-    } as any, contribution.component))
+    }, contribution.component))
+
+    const unregister = (): void => {
+      unregisterSlot()
+      this.pageMetadata.delete(contribution.id)
+    }
+    this.ctx.effect(() => () => { unregister() }, `fabric: page ${contribution.id}`)
+    return unregister
   }
 
   private registerToolbar(slots: SlotRegistry, contribution: FabricToolbarContribution): () => void {
