@@ -20,8 +20,10 @@
   overflow: hidden;
   border: 1px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.12));
   border-radius: 12px;
-  background: var(--dsw-alias-bg-elevated, #fff);
-  box-shadow: var(--dsw-shadow-lv4, 0 16px 48px rgba(0, 0, 0, 0.18));
+  background: var(--dsw-material-acrylic-bg, var(--dsw-alias-bg-elevated, #fff));
+  backdrop-filter: var(--dsw-material-acrylic-filter, none);
+  -webkit-backdrop-filter: var(--dsw-material-acrylic-filter, none);
+  box-shadow: var(--dsw-material-edge-highlight, none), var(--dsw-shadow-lv4, 0 16px 48px rgba(0, 0, 0, 0.18));
   color: var(--dsw-alias-label-primary, #111827);
   font-family: var(--dsw-font-family, system-ui, sans-serif);
 }
