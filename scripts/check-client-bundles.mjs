@@ -32,7 +32,7 @@ const externals = {
 const checks = [
   {
     file: 'lib/client.js',
-    id: 'fabric',
+    id: '@dsh-do/fabric',
     inject: ['slots', 'locale'],
     requires: [
       '@deepseek-ai/cordis',

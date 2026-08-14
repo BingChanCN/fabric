@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsdown'
 import { fabricClient } from './src/build/index.ts'
 
-const PACKAGE_ID = 'fabric'
+const PACKAGE_ID = '@dsh-do/fabric'
 const client = fabricClient({ id: PACKAGE_ID })
 const libraryPlugins = fabricClient({ id: PACKAGE_ID, entry: 'src/ui/index.tsx' }).plugins
 

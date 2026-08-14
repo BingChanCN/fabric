@@ -97,7 +97,7 @@ Fabric SDK 的 `ConfigStore` 实现了基于 **Dirty-Key 追踪** 与 **Seq 序�
 在插件页面或任意 UI 组件中，直接使用 `useFabricConfig`：
 
 ```tsx
-import { useFabricConfig } from 'fabric/ui'
+import { useFabricConfig } from '@dsh-do/fabric/ui'
 
 interface MyPluginConfig {
   autoFollowSystem: boolean

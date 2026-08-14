@@ -7,10 +7,10 @@ Fabric 提供了轻量、无重依赖且深度契合 DSH 原生外观的 UI 组�
 ## 1. 语义 Design Tokens 与层级规范
 
 ### 1.1 语义 Token 映射（`tokens`）
-通过 `import { tokens } from 'fabric/ui'` 引用，自动对接 DSH 变量与安全回退值：
+通过 `import { tokens } from '@dsh-do/fabric/ui'` 引用，自动对接 DSH 变量与安全回退值：
 
 ```ts
-import { tokens } from 'fabric/ui'
+import { tokens } from '@dsh-do/fabric/ui'
 
 const customStyle = {
   backgroundColor: tokens.bg.base,
@@ -41,7 +41,7 @@ const customStyle = {
 
 ### 1.2 `Z_INDEX` 层级规范
 ```ts
-import { Z_INDEX } from 'fabric/ui'
+import { Z_INDEX } from '@dsh-do/fabric/ui'
 ```
 
 - `Z_INDEX.BASE` (0): 普通内容流
@@ -61,7 +61,7 @@ import { Z_INDEX } from 'fabric/ui'
 页面标准外壳与标题区，自带滚动容器与间距控制。
 
 ```tsx
-import { Page, PageHeader, Badge, ToolbarButton } from 'fabric/ui'
+import { Page, PageHeader, Badge, ToolbarButton } from '@dsh-do/fabric/ui'
 
 export function MyPage() {
   return (
@@ -86,7 +86,7 @@ export function MyPage() {
 内容分块卡片，支持标题、描述与右侧操作槽位。
 
 ```tsx
-import { Section } from 'fabric/ui'
+import { Section } from '@dsh-do/fabric/ui'
 
 <Section
   title="网络与代理设置"
@@ -105,7 +105,7 @@ import { Section } from 'fabric/ui'
 将子节点挂载至 `document.body` 上的专用 `#fabric-portal-root` 容器中。
 
 ```tsx
-import { Portal } from 'fabric/ui'
+import { Portal } from '@dsh-do/fabric/ui'
 
 <Portal>
   <div style={{ position: 'fixed', bottom: 16, right: 16 }}>
@@ -119,7 +119,7 @@ import { Portal } from 'fabric/ui'
 
 ```tsx
 import { useState } from 'react'
-import { Modal } from 'fabric/ui'
+import { Modal } from '@dsh-do/fabric/ui'
 
 export function DeleteConfirmModal() {
   const [open, setOpen] = useState(false)
@@ -153,7 +153,7 @@ export function DeleteConfirmModal() {
 基于极简绝对坐标计算与 Click-Outside 监听的浮动层，零外部重依赖。
 
 ```tsx
-import { Popover, Dropdown } from 'fabric/ui'
+import { Popover, Dropdown } from '@dsh-do/fabric/ui'
 
 // 1. 自定义气泡卡片
 <Popover
@@ -182,8 +182,8 @@ import { Popover, Dropdown } from 'fabric/ui'
 配合 `createAsyncResource` / `useAsyncResource` 使用，自动处理加载中、错误、空状态与正常渲染。
 
 ```tsx
-import { createAsyncResource } from 'fabric/sdk'
-import { AsyncView, useAsyncResource } from 'fabric/ui'
+import { createAsyncResource } from '@dsh-do/fabric/sdk'
+import { AsyncView, useAsyncResource } from '@dsh-do/fabric/ui'
 
 const taskResource = createAsyncResource(async (signal) => {
   const res = await fetch('/api/tasks', { signal })
@@ -215,7 +215,7 @@ export function TaskList() {
 原子化状态展示组件。
 
 ```tsx
-import { Badge, LoadingState, EmptyState, ErrorState } from 'fabric/ui'
+import { Badge, LoadingState, EmptyState, ErrorState } from '@dsh-do/fabric/ui'
 
 // 徽标状态
 <Badge tone="success">已就绪</Badge>
@@ -235,7 +235,7 @@ import { Badge, LoadingState, EmptyState, ErrorState } from 'fabric/ui'
 直接绑定由 `ctx.fabric.registerConfig` 声明的 Schema 配置：
 
 ```tsx
-import { useFabricConfig, ConfigForm } from 'fabric/ui'
+import { useFabricConfig, ConfigForm } from '@dsh-do/fabric/ui'
 
 export function PluginSettings() {
   const config = useFabricConfig<{ autoSave: boolean; interval: number }>('my-plugin')

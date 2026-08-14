@@ -34,7 +34,14 @@ try {
   }
   const manifest = JSON.parse(await readFile(join(target, 'package.json'), 'utf8'))
   if (manifest.name !== 'demo-mod') fail(`unexpected scaffold name ${manifest.name}`)
-  if (!manifest.dsh?.client?.inject?.includes('fabric')) fail('scaffold dsh.client.inject is missing fabric')
+  if (!manifest.dsh?.client?.inject?.includes('@dsh-do/fabric')) fail('scaffold dsh.client.inject is missing @dsh-do/fabric')
+  if (manifest.peerDependencies?.['@dsh-do/fabric'] !== '^0.4.0') {
+    fail('scaffold peerDependencies does not reference @dsh-do/fabric')
+  }
+  const tsdownConfig = await readFile(join(target, 'tsdown.config.ts'), 'utf8')
+  if (!tsdownConfig.includes("from '@dsh-do/fabric/build'")) {
+    fail('scaffold tsdown.config.ts does not import the @dsh-do/fabric build preset')
+  }
   console.log('create check passed: demo-mod')
 } finally {
   await rm(temporary, { recursive: true, force: true })

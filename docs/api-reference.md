@@ -30,7 +30,7 @@ import type {
   FabricThemeService,
   FabricCommandService,
   FabricCapabilityService,
-} from 'fabric/client'
+} from '@dsh-do/fabric/client'
 ```
 
 ### 2.1 `FabricService`（挂载在 `ctx.fabric`）
@@ -77,7 +77,7 @@ import {
   ConfigStore,
   createConfigStore,
   ObservableStore,
-} from 'fabric/sdk'
+} from '@dsh-do/fabric/sdk'
 ```
 
 ### 3.1 同源 HTTP 客户端
@@ -123,7 +123,7 @@ import {
   useAsyncResource,
   tokens,
   Z_INDEX,
-} from 'fabric/ui'
+} from '@dsh-do/fabric/ui'
 ```
 
 ### 4.1 核心 React Hooks
@@ -143,7 +143,7 @@ import {
 
 ```ts
 import { defineConfig } from 'tsdown'
-import { fabricPlugin, fabricClient, FABRIC_CLIENT_EXTERNALS } from 'fabric/build'
+import { fabricPlugin, fabricClient, FABRIC_CLIENT_EXTERNALS } from '@dsh-do/fabric/build'
 
 export default defineConfig(fabricPlugin({
   id: 'my-plugin',          // DSH 插件唯一包名
@@ -157,7 +157,7 @@ export default defineConfig(fabricPlugin({
 ## 6. `fabric/create`（脚手架 API）
 
 ```ts
-import { scaffoldPlugin, parseCreateArgs, renderScaffold } from 'fabric/create'
+import { scaffoldPlugin, parseCreateArgs, renderScaffold } from '@dsh-do/fabric/create'
 
 // 执行脚手架生成
 const files = await scaffoldPlugin({

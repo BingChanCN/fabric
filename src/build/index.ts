@@ -123,7 +123,7 @@ export function fabricClient(options: FabricClientBuildOptions): UserConfig {
     plugins: [{
       name: 'fabric-runtime-import-boundary',
       resolveId(source: string) {
-        if (source === 'fabric' || source === 'fabric/client') {
+        if (source === '@dsh-do/fabric' || source === '@dsh-do/fabric/client') {
           throw new Error(
             `fabric build: runtime import "${source}" would duplicate the framework; use ctx.fabric and type-only imports instead`,
           )

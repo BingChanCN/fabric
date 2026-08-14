@@ -28,20 +28,20 @@ npx create-fabric-plugin my-plugin
       "inject": [
         "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-ui-slots",
-        "fabric"
+        "@dsh-do/fabric"
       ],
       "platform": "web"
     }
   },
   "peerDependencies": {
-    "fabric": "^0.4.0",
+    "@dsh-do/fabric": "^0.4.0",
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
     "react": "^18.2.0"
   },
   "devDependencies": {
-    "fabric": "^0.4.0",
+    "@dsh-do/fabric": "^0.4.0",
     "tsdown": "0.22.2",
     "typescript": "~5.7.2"
   },
@@ -49,7 +49,7 @@ npx create-fabric-plugin my-plugin
 }
 ```
 
-`dsh.client.inject` 必须列出客户端直接使用的 DSH 模块。若组件导入 `@deepseek-ai/dsh-client-ui-primitives`，也要把它加入 inject 和 peer/dev dependencies。`fabric` 用于保证框架先于下游客户端激活。
+`dsh.client.inject` 必须列出客户端直接使用的 DSH 模块。若组件导入 `@deepseek-ai/dsh-client-ui-primitives`，也要把它加入 inject 和 peer/dev dependencies。`@dsh-do/fabric` 用于保证框架先于下游客户端激活。
 
 ## 2. Profile patch
 
@@ -75,8 +75,8 @@ export function apply(_ctx: Context): void {}
 
 ```tsx
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type { FabricPageProps } from 'fabric/client'
-import { Page, PageHeader, Section } from 'fabric/ui'
+import type { FabricPageProps } from '@dsh-do/fabric/client'
+import { Page, PageHeader, Section } from '@dsh-do/fabric/ui'
 
 export const inject = ['fabric'] as const
 
@@ -164,7 +164,7 @@ ctx.fabric.register({
 页面可从标准 props 读取当前会话，并让 JSON client 自动附加 query：
 
 ```ts
-import { createJsonClient } from 'fabric/sdk'
+import { createJsonClient } from '@dsh-do/fabric/sdk'
 
 const client = createJsonClient({ sessionId: () => sessionId })
 const value = await client.get<{ count: number }>('/my-plugin/jobs')
@@ -184,7 +184,7 @@ Host 半部应通过 DSH 的 `webServer.register(...)` 提供同源路由。需�
 
 ```ts
 import { defineConfig } from 'tsdown'
-import { fabricPlugin } from 'fabric/build'
+import { fabricPlugin } from '@dsh-do/fabric/build'
 
 export default defineConfig(fabricPlugin({
   id: 'my-fabric-plugin',
@@ -198,8 +198,8 @@ export default defineConfig(fabricPlugin({
 以下运行时导入会被构建器拒绝：
 
 ```ts
-import 'fabric'
-import { apply } from 'fabric/client'
+import '@dsh-do/fabric'
+import { apply } from '@dsh-do/fabric/client'
 ```
 
 应改为 `import type`，并在运行时调用 `ctx.fabric`。这保证浏览器中只有一个 Fabric 服务。
@@ -209,7 +209,7 @@ import { apply } from 'fabric/client'
 先安装 Fabric，再安装下游 bundle：
 
 ```sh
-dsh plugin --profile web add fabric
+dsh plugin --profile web add @dsh-do/fabric
 dsh plugin --profile web add ./my-fabric-plugin
 dsh --profile web
 ```

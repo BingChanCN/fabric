@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { createJsonClient } from 'fabric/sdk'
-import type { FabricSettingsProps } from 'fabric/client'
+import { createJsonClient } from '@dsh-do/fabric/sdk'
+import type { FabricSettingsProps } from '@dsh-do/fabric/client'
 import css from './example.module.css'
 
 export function ExampleSettings({ notify }: FabricSettingsProps) {

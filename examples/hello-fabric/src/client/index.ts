@@ -1,5 +1,5 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type {} from 'fabric/client'
+import type {} from '@dsh-do/fabric/client'
 import { ExamplePage } from './ExamplePage.tsx'
 import { ExampleSettings } from './ExampleSettings.tsx'
 import { RefreshAction } from './RefreshAction.tsx'

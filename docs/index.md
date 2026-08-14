@@ -26,5 +26,5 @@
 npx create-fabric-plugin my-plugin
 
 # 2. 安装至 DSH Web Profile
-dsh plugin --profile web add fabric
+dsh plugin --profile web add @dsh-do/fabric
 ```

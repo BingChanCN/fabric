@@ -123,7 +123,7 @@ async function smokeWeb(environment) {
     const manifest = JSON.parse(manifestMatch[1])
     if (!Array.isArray(manifest.entries)) fail('web boot manifest has no entries array')
 
-    for (const id of ['fabric', 'hello-fabric']) {
+    for (const id of ['@dsh-do/fabric', 'hello-fabric']) {
       const entry = manifest.entries.find(candidate => candidate?.id === id)
       if (entry === undefined || typeof entry.url !== 'string') fail(`web boot manifest is missing ${id}`)
       const bundleResponse = await fetch(new URL(entry.url, baseUrl), { signal: AbortSignal.timeout(15_000) })
@@ -208,14 +208,14 @@ try {
   const profile = JSON.parse(await readFile(profilePath, 'utf8'))
   const bundles = profile.dsh?.profile?.bundles
   if (!Array.isArray(bundles)) fail('profile manifest has no dsh.profile.bundles array')
-  const fabricIndex = bundles.indexOf('fabric')
+  const fabricIndex = bundles.indexOf('@dsh-do/fabric')
   const exampleIndex = bundles.indexOf('hello-fabric')
   if (fabricIndex < 0) fail('Fabric tarball was not reconciled as a profile bundle')
   if (exampleIndex < 0) fail('example tarball was not reconciled as a profile bundle')
   if (fabricIndex >= exampleIndex) fail('Fabric must precede the example in the profile bundle order')
 
   const config = runDsh(['--profile', 'web', '--dump-config'], environment)
-  if (!/^- id: fabric\r?\n\s+name: ['"]?fabric['"]?\s*$/m.test(config)) {
+  if (!/^- id: fabric\r?\n\s+name: ['"]?@dsh-do\/fabric['"]?\s*$/m.test(config)) {
     fail('assembled profile config is missing the Fabric entry')
   }
   if (!/^- id: fabric-example\r?\n\s+name: ['"]?hello-fabric['"]?\s*$/m.test(config)) {

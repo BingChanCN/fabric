@@ -117,7 +117,7 @@ export function apply(ctx: ClientContext): void {
 ### 2. 声明式配置与防竞态同步（`fabric/ui` & `fabric/sdk`）
 - 在组件中直接使用 `useFabricConfig`：
   ```tsx
-  import { useFabricConfig } from 'fabric/ui'
+  import { useFabricConfig } from '@dsh-do/fabric/ui'
 
   function MyComponent() {
     const config = useFabricConfig<{ autoSync: boolean }>('my-plugin')
@@ -151,7 +151,7 @@ runner?.runTask('task-1')
 ### 5. 一键构建预设（`fabric/build`）
 ```ts
 import { defineConfig } from 'tsdown'
-import { fabricPlugin } from 'fabric/build'
+import { fabricPlugin } from '@dsh-do/fabric/build'
 
 export default defineConfig(fabricPlugin({
   id: 'my-cool-plugin',

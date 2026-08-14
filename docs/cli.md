@@ -58,13 +58,13 @@ my-cool-plugin/
         "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-ui-primitives",
         "@deepseek-ai/dsh-client-ui-slots",
-        "fabric"
+        "@dsh-do/fabric"
       ],
       "platform": "web"
     }
   },
   "peerDependencies": {
-    "fabric": "^0.4.0",
+    "@dsh-do/fabric": "^0.4.0",
     "react": "^18.2.0"
   }
 }
@@ -75,8 +75,8 @@ my-cool-plugin/
 
 ```tsx
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type { FabricPageProps } from 'fabric/client'
-import { Page, PageHeader } from 'fabric/ui'
+import type { FabricPageProps } from '@dsh-do/fabric/client'
+import { Page, PageHeader } from '@dsh-do/fabric/ui'
 
 export const inject = ['fabric'] as const
 
@@ -106,11 +106,11 @@ export function apply(ctx: ClientContext): void {
 ```
 
 ### 3.3 构建配置（`tsdown.config.ts`）
-直接消费 `@cortexkit/fabric/build` 提供的 `fabricPlugin` 预设：
+直接消费 `@dsh-do/fabric/build` 提供的 `fabricPlugin` 预设：
 
 ```ts
 import { defineConfig } from 'tsdown'
-import { fabricPlugin } from 'fabric/build'
+import { fabricPlugin } from '@dsh-do/fabric/build'
 
 export default defineConfig(fabricPlugin({
   id: 'my-cool-plugin',
@@ -139,7 +139,7 @@ dsh --profile web
 脚手架能力同样暴露在 `fabric/create` 入口中，可供工具链与自动化脚本调用：
 
 ```ts
-import { scaffoldPlugin } from 'fabric/create'
+import { scaffoldPlugin } from '@dsh-do/fabric/create'
 
 const files = await scaffoldPlugin({
   name: 'custom-widget',

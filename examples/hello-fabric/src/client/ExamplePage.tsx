@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import { createJsonClient, createAsyncResource } from 'fabric/sdk'
+import { createJsonClient, createAsyncResource } from '@dsh-do/fabric/sdk'
 import {
   AsyncView, Badge, Dropdown, EmptyState, Modal, Page, PageHeader, Popover, Section,
   useAsyncResource, useFabricConfig,
-} from 'fabric/ui'
-import type { FabricPageProps } from 'fabric/client'
+} from '@dsh-do/fabric/ui'
+import type { FabricPageProps } from '@dsh-do/fabric/client'
 import css from './example.module.css'
 
 type StatusPayload = {

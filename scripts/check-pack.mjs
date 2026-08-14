@@ -57,7 +57,7 @@ try {
 
   const packageRoot = join(unpacked, 'package')
   const manifest = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8'))
-  if (manifest.name !== 'fabric') fail(`unexpected package name ${JSON.stringify(manifest.name)}`)
+  if (manifest.name !== '@dsh-do/fabric') fail(`unexpected package name ${JSON.stringify(manifest.name)}`)
   if (manifest.dsh?.bundle?.patch !== './cordis.patch.yml') fail('dsh.bundle.patch must point to ./cordis.patch.yml')
   if (manifest.dsh?.client?.platform !== 'web') fail('dsh.client.platform must be web')
 
@@ -118,7 +118,7 @@ try {
   }
 
   const patch = await readFile(join(packageRoot, 'cordis.patch.yml'), 'utf8')
-  if (!/^\s*-\s+insert:/m.test(patch) || !/^\s+name:\s+['"]?fabric['"]?\s*$/m.test(patch)) {
+  if (!/^\s*-\s+insert:/m.test(patch) || !/^\s+name:\s+['"]?@dsh-do\/fabric['"]?\s*$/m.test(patch)) {
     fail('cordis.patch.yml does not insert fabric')
   }
   if (/^\s+name:\s+['"]?(?:root|app\.root)['"]?\s*$/m.test(patch)) {
@@ -128,7 +128,7 @@ try {
   const client = await readFile(join(packageRoot, 'lib/client.js'), 'utf8')
   if (!client.startsWith('window.__ModuleLoader__.load(')) fail('lib/client.js is not a prebuilt DSH ModuleLoader bundle')
   if (!/\bid:\s*["']fabric["']/.test(client)) fail('lib/client.js registers the wrong module id')
-  if (/require\(["']fabric(?:\/client)?["']\)/.test(client)) {
+  if (/require\(["']@dsh-do\/fabric(?:\/client)?["']\)/.test(client)) {
     fail('lib/client.js imports a second Fabric runtime')
   }
 
@@ -142,7 +142,7 @@ try {
   if (!clientTypes.includes('registerConfig')) fail('types/client.d.ts is missing registerConfig')
 
   const build = await readFile(join(packageRoot, 'lib/build.js'), 'utf8')
-  if (!build.includes('runtime import') || !build.includes('fabric/client')) {
+  if (!build.includes('runtime import') || !build.includes('@dsh-do/fabric/client')) {
     fail('lib/build.js does not enforce the Fabric runtime import boundary')
   }
 

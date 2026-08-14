@@ -18,6 +18,6 @@ describe('create-fabric-plugin', () => {
     const client = await readFile(join(directory, 'src/client/index.ts'), 'utf8')
     expect(client).toContain("export const inject = ['fabric'] as const")
     expect(client).toContain("kind: 'page'")
-    expect(renderScaffold('demo-mod')['package.json']).toContain('"fabric": "^0.4.0"')
+    expect(renderScaffold('demo-mod')['package.json']).toContain('"@dsh-do/fabric": "^0.4.0"')
   })
 })
