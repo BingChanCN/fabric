@@ -119,27 +119,27 @@
 }
 
 .badge[data-tone="neutral"] {
-  background: var(--dsw-alias-bg-subtle, #f3f4f6);
+  background: var(--dsw-alias-bg-subtle, var(--dsw-alias-bg-layer-2, #f3f4f6));
   color: var(--dsw-alias-label-secondary, #4b5563);
 }
 
 .badge[data-tone="info"] {
-  background: var(--dsw-alias-state-business-tertiary, #e0e7ff);
+  background: var(--dsw-alias-state-business-tertiary, color-mix(in srgb, var(--dsw-alias-state-business-primary, #3730a3) 16%, transparent));
   color: var(--dsw-alias-state-business-primary, #3730a3);
 }
 
 .badge[data-tone="success"] {
-  background: var(--dsw-alias-state-success-secondary, #dcfce7);
+  background: var(--dsw-alias-state-success-tertiary, color-mix(in srgb, var(--dsw-alias-state-success-primary, #166534) 16%, transparent));
   color: var(--dsw-alias-state-success-primary, #166534);
 }
 
 .badge[data-tone="warning"] {
-  background: var(--dsw-alias-state-warn-secondary, #fef3c7);
+  background: var(--dsw-alias-state-warn-tertiary, color-mix(in srgb, var(--dsw-alias-state-warn-primary, #92400e) 16%, transparent));
   color: var(--dsw-alias-state-warn-primary, #92400e);
 }
 
 .badge[data-tone="error"] {
-  background: var(--dsw-alias-state-error-secondary, #fee2e2);
+  background: var(--dsw-alias-state-error-tertiary, color-mix(in srgb, var(--dsw-alias-state-error-primary, #991b1b) 16%, transparent));
   color: var(--dsw-alias-state-error-primary, #991b1b);
 }
 
@@ -310,7 +310,7 @@
   padding: 12px 20px;
   gap: 8px;
   border-top: 1px solid var(--dsw-alias-border-l1, rgba(0, 0, 0, 0.05));
-  background: var(--dsw-alias-bg-subtle, #f9fafb);
+  background: var(--dsw-alias-bg-subtle, var(--dsw-alias-bg-layer-2, #f9fafb));
 }
 
 /* Popover */

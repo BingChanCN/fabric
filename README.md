@@ -24,7 +24,7 @@ pnpm build
 ```sh
 # 本地打包与安装
 pnpm --dir D:/dsh-dev/fabric pack --pack-destination .pack-probe
-dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/fabric-0.4.0.tgz"
+dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/fabric-0.4.1.tgz"
 
 # 启动 DSH Web GUI
 dsh --profile web

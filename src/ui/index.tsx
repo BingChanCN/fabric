@@ -27,8 +27,8 @@ export const Z_INDEX = {
 export const tokens = {
   bg: {
     base: 'var(--dsw-alias-bg-base, #ffffff)',
-    subtle: 'var(--dsw-alias-bg-subtle, #f9fafb)',
-    elevated: 'var(--dsw-alias-bg-elevated, #ffffff)',
+    subtle: 'var(--dsw-alias-bg-subtle, var(--dsw-alias-bg-layer-2, #f9fafb))',
+    elevated: 'var(--dsw-alias-bg-elevated, var(--dsw-alias-bg-layer-1, #ffffff))',
     overlay: 'var(--dsw-alias-bg-overlay, rgba(0, 0, 0, 0.5))',
     mask: 'var(--dsw-alias-bg-mask-1, rgba(0, 0, 0, 0.45))',
   },
