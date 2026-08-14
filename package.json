@@ -1,6 +1,6 @@
 {
   "name": "fabric",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Composable frontend framework for DeepSeek Harness plugins",
   "type": "module",
   "main": "lib/index.js",

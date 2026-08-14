@@ -8,6 +8,7 @@ import { FabricController } from './controller.ts'
 import type { FabricPageCatalog } from './controller.ts'
 import type { FabricPageEntry, FabricService } from './contract.ts'
 import { FabricRuntimeService } from './service.ts'
+import { FabricThemeManager } from './theme.ts'
 import { Launcher } from './components/Launcher.tsx'
 import { FabricSettings } from './components/Settings.tsx'
 import { Workbench } from './components/Workbench.tsx'
@@ -21,8 +22,8 @@ export type {
   FabricOverlayContribution, FabricOverlayOwnerProps, FabricOverlayProps,
   FabricPageContribution, FabricPageEntry, FabricPageOwnerProps, FabricPageProps,
   FabricService, FabricSettingsContribution, FabricSettingsOwnerProps, FabricSettingsProps,
-  FabricSnapshot, FabricToolbarActionOwnerProps, FabricToolbarActionProps,
-  FabricToolbarContribution,
+  FabricSnapshot, FabricThemeContribution, FabricThemeService, FabricThemeSetOptions,
+  FabricToolbarActionOwnerProps, FabricToolbarActionProps, FabricToolbarContribution,
 } from './contract.ts'
 
 const NS = 'fabric'
@@ -35,11 +36,24 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'fabric: dictionaries')
 
   const catalog: FabricPageCatalog = {
-    read: () => ctx.slots.entries('fabric.page').map((entry): FabricPageEntry => ({
-      id: entry.options.id ?? '',
-      order: entry.options.order ?? 0,
-      label: resolveSlotLabel(entry.options.label) ?? entry.options.id ?? '',
-    })),
+    read: () => ctx.slots.entries('fabric.page').map((entry): FabricPageEntry => {
+      const opts = entry.options as {
+        id?: string
+        order?: number
+        label?: unknown
+        icon?: unknown
+        badge?: string | number
+        keepAlive?: boolean
+      }
+      return {
+        id: opts.id ?? '',
+        order: opts.order ?? 0,
+        label: resolveSlotLabel(opts.label as Parameters<typeof resolveSlotLabel>[0]) ?? opts.id ?? '',
+        ...(opts.icon !== undefined ? { icon: opts.icon as React.ReactNode } : {}),
+        ...(opts.badge !== undefined ? { badge: opts.badge } : {}),
+        keepAlive: opts.keepAlive !== false,
+      }
+    }),
     subscribe: (listener) => {
       const stopSlots = ctx.slots.subscribe('fabric.page', listener)
       const stopLocale = ctx.locale.subscribe(listener)
@@ -50,13 +64,15 @@ export function apply(ctx: ClientContext): void {
     },
   }
   const controller = new FabricController(catalog)
-  const service = new FabricRuntimeService(ctx, controller)
+  const theme = new FabricThemeManager()
+  const service = new FabricRuntimeService(ctx, controller, theme)
 
   ctx.effect(() => {
     const stop = controller.start()
     return () => {
       stop()
       controller.dispose()
+      theme.dispose()
     }
   }, 'fabric: controller lifecycle')
 

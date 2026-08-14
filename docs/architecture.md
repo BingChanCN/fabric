@@ -30,15 +30,17 @@ Fabric 只注册三个 DSH list 槽贡献：
 
 Workbench 声明三个子槽：`fabric.page`、`fabric.toolbar.action`、`fabric.overlay`。Settings host 声明 `fabric.settings`。四者均为 list 槽；页面用 DSH 原生 `renderSlot(..., { only: id })` 选择当前贡献。
 
-已访问页面保持挂载，仅通过 `hidden` 切换可见性。这样表单草稿和组件局部状态在页面切换时不会丢失；贡献卸载后，对应页面会从已访问集合中移除。
+工作台容器在首次打开后常驻保持 DOM 挂载，抽屉关闭时仅做 CSS 隐藏；已访问页面默认 `keepAlive: true` 保持挂载（`hidden` 切换可见性）。这样即使关闭并重新打开工作台抽屉，富表单草稿和局部状态仍旧保留。当页面显式声明 `keepAlive: false` 时，切走即销毁。贡献卸载后，对应页面会从已访问集合中移除。
 
 ## 服务与生命周期
 
-浏览器入口同步构造 `FabricRuntimeService`，它作为 Cordis `Service` 暴露为 `ctx.fabric`。控制器只维护不可变快照：
+浏览器入口同步构造 `FabricRuntimeService`，它作为 Cordis `Service` 暴露为 `ctx.fabric`。控制器维护不可变快照，同时内建 `FabricThemeManager` 提供 `ctx.fabric.theme` 主题服务：
 
 - 工作台开关状态；
-- 当前页面与 slot ledger 派生的页面目录；
+- 当前页面与 slot ledger 派生的页面目录（含 `icon`、`badge`、`keepAlive` 元数据）；
 - 通知队列；
+- 全局与工作台级 CSS Token 高特异性注入（`:root, body, body[data-ds-dark-theme]`）；
+- 多插件主题优先级仲裁与宿主暗色模式监听；
 - 单调递增 revision。
 
 `ctx.fabric.register(contribution)` 是对 DSH `slots.inject/register` 的薄委托。Cordis service proxy 会把方法的 `this.ctx` 替换为调用方上下文，因此注册 effect 属于下游插件 fiber，而不是 Fabric 自身。两种卸载路径都成立：

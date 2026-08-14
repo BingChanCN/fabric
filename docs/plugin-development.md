@@ -1,6 +1,6 @@
 # Fabric 插件开发
 
-本指南从一个空目录建立可安装的 Fabric 下游插件。示例基于 DSH `0.1.0-rc.6`、Fabric `0.1.0` 和 `tsdown 0.22.2`。
+本指南从一个空目录建立可安装的 Fabric 下游插件。示例基于 DSH `0.1.0-rc.6`、Fabric `0.2.0` 和 `tsdown 0.22.2`。
 
 ## 1. 包清单
 
@@ -28,14 +28,14 @@
     }
   },
   "peerDependencies": {
-    "fabric": "^0.1.0",
+    "fabric": "^0.2.0",
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
     "react": "^18.2.0"
   },
   "devDependencies": {
-    "fabric": "^0.1.0",
+    "fabric": "^0.2.0",
     "tsdown": "0.22.2",
     "typescript": "~5.7.2"
   },
@@ -91,12 +91,15 @@ export function apply(ctx: ClientContext): void {
     id: 'jobs',
     order: 20,
     label: 'Jobs',
+    icon: '💼',
+    badge: 'NEW',
+    keepAlive: true,
     component: JobsPage,
   })
 }
 ```
 
-`label` 可传字符串，也可传延迟求值函数。`id` 在同一种贡献类型内必须稳定；`order` 越小越靠前，省略时为 `0`。
+`label` 可传字符串，也可传延迟求值函数。`id` 在同一种贡献类型内必须稳定；`order` 越小越靠前，省略时为 `0`。`keepAlive: true`（默认）在切页时保留草稿和组件状态。
 
 其他贡献沿用同一入口：
 
@@ -104,6 +107,12 @@ export function apply(ctx: ClientContext): void {
 ctx.fabric.register({ kind: 'toolbar', id: 'jobs-refresh', component: RefreshAction })
 ctx.fabric.register({ kind: 'overlay', id: 'jobs-dialog', component: JobsDialog })
 ctx.fabric.register({ kind: 'settings', id: 'jobs-settings', component: JobsSettings })
+ctx.fabric.register({
+  kind: 'theme',
+  id: 'jobs-theme',
+  priority: 5,
+  tokens: { '--dsw-alias-brand-primary': '#10b981' },
+})
 ```
 
 对应 props 类型为 `FabricToolbarActionProps`、`FabricOverlayProps`、`FabricSettingsProps`。不要直接注册 `fabric.*` DSH slot；`ctx.fabric.register()` 负责声明等待和调用方生命周期。

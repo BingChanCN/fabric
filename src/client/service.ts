@@ -3,9 +3,11 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import type {
   FabricContribution, FabricOverlayContribution, FabricPageContribution,
-  FabricService, FabricSettingsContribution, FabricToolbarContribution,
+  FabricService, FabricSettingsContribution, FabricThemeContribution,
+  FabricThemeService, FabricToolbarContribution,
 } from './contract.ts'
 import type { FabricController } from './controller.ts'
+import type { FabricThemeManager } from './theme.ts'
 
 /**
  * Cordis service facade for downstream plugins.
@@ -15,7 +17,11 @@ import type { FabricController } from './controller.ts'
  * downstream plugin fiber rather than Fabric's own fiber.
  */
 export class FabricRuntimeService extends Service implements FabricService {
-  constructor(ctx: Context, private readonly controller: FabricController) {
+  constructor(
+    ctx: Context,
+    private readonly controller: FabricController,
+    readonly theme: FabricThemeManager,
+  ) {
     super(ctx, 'fabric')
   }
 
@@ -28,6 +34,10 @@ export class FabricRuntimeService extends Service implements FabricService {
   }
 
   register(contribution: FabricContribution): () => void {
+    if (contribution.kind === 'theme') {
+      return this.registerTheme(contribution)
+    }
+
     const slots = this.ctx.get('slots') as SlotRegistry | undefined
     if (slots === undefined) throw new Error('fabric: slots service unavailable')
     switch (contribution.kind) {
@@ -66,13 +76,29 @@ export class FabricRuntimeService extends Service implements FabricService {
     this.controller.dismissNotice(id)
   }
 
+  private registerTheme(contribution: FabricThemeContribution): () => void {
+    const unregister = this.theme.setTokens(
+      contribution.id,
+      contribution.tokens,
+      {
+        ...(contribution.priority !== undefined ? { priority: contribution.priority } : {}),
+        ...(contribution.scope !== undefined ? { scope: contribution.scope } : {}),
+      },
+    )
+    this.ctx.effect(() => () => { unregister() }, `fabric: theme ${contribution.id}`)
+    return unregister
+  }
+
   private registerPage(slots: SlotRegistry, contribution: FabricPageContribution): () => void {
     return slots.inject('fabric.page', () => slots.register({
       name: 'fabric.page',
       id: contribution.id,
       ...(contribution.order === undefined ? {} : { order: contribution.order }),
       label: contribution.label,
-    }, contribution.component))
+      icon: contribution.icon,
+      badge: contribution.badge,
+      keepAlive: contribution.keepAlive,
+    } as any, contribution.component))
   }
 
   private registerToolbar(slots: SlotRegistry, contribution: FabricToolbarContribution): () => void {

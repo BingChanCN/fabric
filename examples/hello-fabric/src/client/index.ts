@@ -14,6 +14,9 @@ export function apply(ctx: ClientContext): void {
     id: 'hello',
     order: 0,
     label: 'Hello Fabric',
+    icon: '✨',
+    badge: 'v0.2',
+    keepAlive: true,
     component: ExamplePage,
   })
 
@@ -29,5 +32,15 @@ export function apply(ctx: ClientContext): void {
     id: 'hello-fabric',
     order: 0,
     component: ExampleSettings,
+  })
+
+  ctx.fabric.register({
+    kind: 'theme',
+    id: 'hello-fabric-theme',
+    priority: 1,
+    scope: 'workbench',
+    tokens: {
+      '--dsw-alias-brand-primary': '#2563eb',
+    },
   })
 }

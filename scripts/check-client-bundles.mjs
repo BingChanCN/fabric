@@ -24,6 +24,9 @@ const externals = {
     jsx: () => null,
     jsxs: () => null,
   },
+  'react-dom': {
+    createPortal: (children) => children,
+  },
 }
 
 const checks = [
@@ -46,6 +49,7 @@ const checks = [
     requires: [
       '@deepseek-ai/dsh-client-ui-primitives',
       'react',
+      'react-dom',
       'react/jsx-runtime',
     ],
   },

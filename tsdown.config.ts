@@ -21,8 +21,8 @@ export default defineConfig([
     sourcemap: true,
     clean: false,
     deps: {
-      neverBundle: ['react', 'react/jsx-runtime'],
-      alwaysBundle: (id: string) => id === 'react' || id === 'react/jsx-runtime' ? false : true,
+      neverBundle: ['react', 'react/jsx-runtime', 'react-dom'],
+      alwaysBundle: (id: string) => id === 'react' || id === 'react/jsx-runtime' || id === 'react-dom' ? false : true,
     },
     plugins: libraryPlugins,
     outputOptions: { entryFileNames: '[name].js' },

@@ -25,18 +25,30 @@ export function Workbench({
   const titleId = useId()
   const snapshot = useFabric(value => value)
   const [visited, setVisited] = useState<ReadonlySet<string>>(() => new Set())
+  const [hasOpenedOnce, setHasOpenedOnce] = useState(false)
   const dialog = useRef<HTMLDivElement | null>(null)
   const restoreFocus = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
+    if (snapshot.open && !hasOpenedOnce) {
+      setHasOpenedOnce(true)
+    }
+  }, [snapshot.open, hasOpenedOnce])
+
+  useEffect(() => {
     const active = snapshot.activePage
     if (active === undefined) return
+    const activePageObj = snapshot.pages.find(p => p.id === active)
+    if (activePageObj && activePageObj.keepAlive === false) {
+      // Don't retain in visited set if keepAlive is explicitly false
+      return
+    }
     setVisited(previous => previous.has(active) ? previous : new Set([...previous, active]))
-  }, [snapshot.activePage])
+  }, [snapshot.activePage, snapshot.pages])
 
   useEffect(() => {
     setVisited(previous => {
-      const live = new Set(snapshot.pages.map(page => page.id))
+      const live = new Set(snapshot.pages.filter(p => p.keepAlive !== false).map(page => page.id))
       if ([...previous].every(id => live.has(id))) return previous
       return new Set([...previous].filter(id => live.has(id)))
     })
@@ -60,17 +72,31 @@ export function Workbench({
   const owner = { closeFabric, openFabric, notify }
   const active = snapshot.pages.find(page => page.id === snapshot.activePage)
 
+  // Drawer shell is kept mounted once opened so keepAlive pages preserve state across open/close
+  const shouldRenderDrawer = snapshot.open || hasOpenedOnce
+
   return (
     <div className={css.host} data-open={snapshot.open || undefined}>
-      {snapshot.open && (
+      {shouldRenderDrawer && (
         <>
-          <button type="button" className={css.mask} aria-label={t('close')} onClick={closeFabric} />
+          <button
+            type="button"
+            className={css.mask}
+            aria-label={t('close')}
+            onClick={closeFabric}
+            hidden={!snapshot.open}
+            style={snapshot.open ? undefined : { display: 'none' }}
+          />
           <div
             ref={dialog}
             className={css.drawer}
+            data-fabric-workbench="true"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
+            aria-hidden={!snapshot.open}
+            hidden={!snapshot.open}
+            style={snapshot.open ? undefined : { display: 'none' }}
             tabIndex={-1}
           >
             <header className={css.header}>
@@ -100,14 +126,20 @@ export function Workbench({
                     aria-current={page.id === snapshot.activePage ? 'page' : undefined}
                     onClick={() => { openFabric(page.id) }}
                   >
-                    {page.label}
+                    <div className={css.navContent}>
+                      {page.icon && <span className={css.navIcon}>{page.icon}</span>}
+                      <span className={css.navLabel}>{page.label}</span>
+                      {page.badge !== undefined && (
+                        <span className={css.navBadge}>{page.badge}</span>
+                      )}
+                    </div>
                   </button>
                 ))}
               </nav>
               <main className={css.content}>
                 {snapshot.pages.length === 0 && <p className={css.empty}>{t('empty.pages')}</p>}
                 {snapshot.pages
-                  .filter(page => page.id === snapshot.activePage || visited.has(page.id))
+                  .filter(page => page.id === snapshot.activePage || (page.keepAlive !== false && visited.has(page.id)))
                   .map(page => (
                     <section key={page.id} className={css.page} hidden={page.id !== snapshot.activePage}>
                       {renderSlot('fabric.page', owner, { only: page.id })}

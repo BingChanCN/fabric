@@ -124,7 +124,7 @@ try {
   if (!/register\(contribution:\s*FabricContribution\):\s*\(\)\s*=>\s*void/.test(clientTypes)) {
     fail('types/client.d.ts does not expose FabricService.register')
   }
-  for (const kind of ['page', 'toolbar', 'overlay', 'settings']) {
+  for (const kind of ['page', 'toolbar', 'overlay', 'settings', 'theme']) {
     if (!clientTypes.includes(`kind: '${kind}'`)) fail(`types/client.d.ts is missing the ${kind} contribution`)
   }
 

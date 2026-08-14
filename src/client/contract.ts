@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type {
   HostObservable, PropsRuntime, SlotComponent, SlotLabel,
 } from '@deepseek-ai/dsh-client-ui-slots'
@@ -27,6 +28,9 @@ export interface FabricPageEntry {
   readonly id: string
   readonly label: string
   readonly order: number
+  readonly icon?: ReactNode
+  readonly badge?: string | number
+  readonly keepAlive?: boolean
 }
 
 /** Immutable observable state exposed by `ctx.fabric`. */
@@ -79,6 +83,12 @@ export interface FabricPageContribution extends FabricContributionBase {
   kind: 'page'
   /** Navigation label. A thunk may resolve the current locale lazily. */
   label: SlotLabel
+  /** Optional icon displayed in navigation (ReactNode or SVG). */
+  icon?: ReactNode
+  /** Optional badge or counter indicator. */
+  badge?: string | number
+  /** Whether to retain component state when navigating away (default: true). */
+  keepAlive?: boolean
   component: SlotComponent<FabricPageProps>
 }
 
@@ -97,12 +107,44 @@ export interface FabricSettingsContribution extends FabricContributionBase {
   component: SlotComponent<FabricSettingsProps>
 }
 
+/** Theme token override contribution. */
+export interface FabricThemeContribution extends FabricContributionBase {
+  kind: 'theme'
+  /** CSS variable map, e.g. `{ '--dsw-alias-bg-base': '#1e1e2e' }`. */
+  tokens: Record<string, string>
+  /** Higher priority wins when multiple plugins set the same token. Defaults to 0. */
+  priority?: number
+  /** Scope of the override. Defaults to 'global'. */
+  scope?: 'global' | 'workbench'
+}
+
 /** Contributions accepted by {@link FabricService.register}. */
 export type FabricContribution =
   | FabricPageContribution
   | FabricToolbarContribution
   | FabricOverlayContribution
   | FabricSettingsContribution
+  | FabricThemeContribution
+
+/** Options for setting theme tokens via {@link FabricThemeService.setTokens}. */
+export interface FabricThemeSetOptions {
+  priority?: number
+  scope?: 'global' | 'workbench'
+}
+
+/** Theme management service exposed on `ctx.fabric.theme`. */
+export interface FabricThemeService {
+  /** Register or set token overrides under a stable id. Returns an unregister disposer. */
+  setTokens(id: string, tokens: Record<string, string>, options?: FabricThemeSetOptions): () => void
+  /** Clear token overrides registered under an id. */
+  clearTokens(id: string): void
+  /** Read current active tokens for a given scope. */
+  getTokens(scope?: 'global' | 'workbench'): Record<string, string>
+  /** Subscribe to theme/dark-mode switches. Returns an unsubscribe disposer. */
+  onThemeChange(listener: (theme: { dark: boolean }) => void): () => void
+  /** Whether the host is currently in dark theme mode. */
+  isDark(): boolean
+}
 
 /** Public browser service shared by Fabric-aware DSH plugins. */
 export interface FabricService extends HostObservable<FabricSnapshot> {
@@ -114,6 +156,8 @@ export interface FabricService extends HostObservable<FabricSnapshot> {
   navigate(pageId: string): void
   notify(message: string, options?: FabricNoticeOptions): () => void
   dismissNotice(id: string): void
+  /** Theme management service. */
+  readonly theme: FabricThemeService
 }
 
 declare module '@deepseek-ai/cordis' {

@@ -2,9 +2,11 @@
 
 这是 Fabric 的最小完整下游插件，包含：
 
-- 一个 `fabric.page` 页面；
+- 一个 `fabric.page` 页面（支持 `icon`、`badge`、`keepAlive` 保活）；
 - 一个工作台工具栏动作；
 - 一个 Plugins 设置贡献；
+- 一个 `kind: 'theme'` 主题 Token 覆盖；
+- 包含 `Modal`、`Dropdown`、`Popover` 交互组件；
 - 两个 DSH host 同源 JSON 路由；
 - `createJsonClient`、`AsyncResource` 和 Fabric UI 组件；
 - 由 `fabricPlugin()` 生成的 Node 与浏览器预构建产物。
@@ -20,7 +22,7 @@ pnpm build:example
 
 ```sh
 pnpm --dir examples/hello-fabric pack --pack-destination ../../.pack-probe
-dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/hello-fabric-0.1.0.tgz"
+dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/hello-fabric-0.2.0.tgz"
 dsh --profile web
 ```
 

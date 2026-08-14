@@ -1,6 +1,8 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { createJsonClient, createAsyncResource } from 'fabric/sdk'
-import { AsyncView, Badge, EmptyState, Page, PageHeader, Section, useAsyncResource } from 'fabric/ui'
+import {
+  AsyncView, Badge, Dropdown, EmptyState, Modal, Page, PageHeader, Popover, Section, useAsyncResource,
+} from 'fabric/ui'
 import type { FabricPageProps } from 'fabric/client'
 import css from './example.module.css'
 
@@ -10,6 +12,7 @@ type StatusPayload = {
 }
 
 export function ExamplePage({ sessionId, openFabric, notify }: FabricPageProps) {
+  const [modalOpen, setModalOpen] = useState(false)
   const resource = useMemo(() => createAsyncResource<StatusPayload>(async signal => {
     const client = createJsonClient({ sessionId: () => sessionId })
     return client.get<StatusPayload>('/fabric-example/status', { signal })
@@ -36,6 +39,41 @@ export function ExamplePage({ sessionId, openFabric, notify }: FabricPageProps) 
           </Badge>
           <button type="button" className={css.linkButton} onClick={() => openFabric()}>Keep Fabric open</button>
         </div>
+      </Section>
+      <Section title="UI Primitives & Overlays" description="Interact with built-in Modal, Dropdown and Popover components.">
+        <div className={css.row}>
+          <button type="button" className={css.button} onClick={() => { setModalOpen(true) }}>
+            Open Demo Modal
+          </button>
+          <Dropdown
+            trigger={<button type="button" className={css.button}>Dropdown Menu ▾</button>}
+            items={[
+              { id: 'item1', label: 'Action 1', onClick: () => notify('Action 1 clicked', { tone: 'info' }) },
+              { id: 'item2', label: 'Success Notice', onClick: () => notify('Operation succeeded', { tone: 'success' }) },
+              { id: 'item3', label: 'Disabled Item', disabled: true },
+              { id: 'item4', label: 'Danger Action', danger: true, onClick: () => notify('Danger triggered', { tone: 'warning' }) },
+            ]}
+          />
+          <Popover
+            trigger={<button type="button" className={css.button}>Info Popover</button>}
+            content={<div style={{ maxWidth: 200, fontSize: 13 }}>This is a floating popover anchored to the trigger button.</div>}
+          />
+        </div>
+        <Modal
+          open={modalOpen}
+          onClose={() => { setModalOpen(false) }}
+          title="Fabric Interactive Modal"
+          description="A standard modal dialog with ESC closing, focus trap and backdrop mask."
+          footer={
+            <button type="button" className={css.button} onClick={() => { setModalOpen(false) }}>
+              Close Modal
+            </button>
+          }
+        >
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+            This modal is rendered through a dedicated <code>Portal</code> and follows Fabric elevation standards.
+          </p>
+        </Modal>
       </Section>
       <Section title="Request lifecycle" description="AsyncResource cancels stale requests and keeps refresh state stable.">
         <AsyncView

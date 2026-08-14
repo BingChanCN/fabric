@@ -1,7 +1,56 @@
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import type { AsyncResource, AsyncResourceSnapshot, Observable } from '../sdk/index.ts'
 import css from './ui.module.css'
+
+/** Z-Index layer contract matching framework elevation standards. */
+export const Z_INDEX = {
+  BASE: 0,
+  STICKY: 10,
+  DROPDOWN: 100,
+  POPOVER: 200,
+  DRAWER: 500,
+  OVERLAY: 600,
+  MODAL: 1000,
+  TOAST: 2000,
+} as const
+
+/** Canonical design tokens referencing DSH host CSS variables with fallbacks. */
+export const tokens = {
+  bg: {
+    base: 'var(--dsw-alias-bg-base, #ffffff)',
+    subtle: 'var(--dsw-alias-bg-subtle, #f9fafb)',
+    elevated: 'var(--dsw-alias-bg-elevated, #ffffff)',
+    overlay: 'var(--dsw-alias-bg-overlay, rgba(0, 0, 0, 0.5))',
+    mask: 'var(--dsw-alias-bg-mask-1, rgba(0, 0, 0, 0.45))',
+  },
+  text: {
+    primary: 'var(--dsw-alias-label-primary, #111827)',
+    secondary: 'var(--dsw-alias-label-secondary, #4b5563)',
+    tertiary: 'var(--dsw-alias-label-tertiary, #9ca3af)',
+    inverse: 'var(--dsw-alias-label-inverse, #ffffff)',
+  },
+  border: {
+    l1: 'var(--dsw-alias-border-l1, rgba(0, 0, 0, 0.05))',
+    l2: 'var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.1))',
+    l3: 'var(--dsw-alias-border-l3, #d1d5db)',
+  },
+  brand: {
+    primary: 'var(--dsw-alias-brand-primary, #2563eb)',
+    hover: 'var(--dsw-alias-brand-hover, #1d4ed8)',
+  },
+  state: {
+    error: 'var(--dsw-alias-state-error-primary, #dc2626)',
+    warning: 'var(--dsw-alias-state-warning-primary, #d97706)',
+    success: 'var(--dsw-alias-state-success-primary, #16a34a)',
+    info: 'var(--dsw-alias-state-info-primary, #2563eb)',
+  },
+  font: {
+    family: 'var(--dsw-font-family, system-ui, -apple-system, sans-serif)',
+    mono: 'var(--dsw-font-mono, ui-monospace, SFMono-Regular, monospace)',
+  },
+} as const
 
 /** Bind any Fabric observable without coupling the source to React. */
 export function useObservable<T>(source: Observable<T>): T {
@@ -120,5 +169,293 @@ export function ToolbarButton({ label, icon, onClick, disabled }: {
     <button type="button" className={css.iconButton} aria-label={label} title={label} onClick={onClick} disabled={disabled}>
       {icon}
     </button>
+  )
+}
+
+/** Renders children into a dedicated overlay portal container on document.body. */
+export function Portal({ children, container }: { children: ReactNode; container?: HTMLElement | null }) {
+  const [target, setTarget] = useState<HTMLElement | null>(() => {
+    if (container !== undefined) return container
+    if (typeof document === 'undefined') return null
+    return document.getElementById('fabric-portal-root')
+  })
+
+  useEffect(() => {
+    if (container !== undefined) {
+      setTarget(container)
+      return
+    }
+    if (typeof document === 'undefined') return
+    let el = document.getElementById('fabric-portal-root')
+    if (!el) {
+      el = document.createElement('div')
+      el.id = 'fabric-portal-root'
+      document.body.appendChild(el)
+    }
+    setTarget(el)
+  }, [container])
+
+  if (!target) return null
+  return createPortal(children, target)
+}
+
+export interface ModalProps {
+  open: boolean
+  onClose: () => void
+  title?: ReactNode
+  description?: ReactNode
+  children?: ReactNode
+  footer?: ReactNode
+  size?: 'sm' | 'md' | 'lg' | 'full'
+  closeOnEsc?: boolean
+  closeOnOverlayClick?: boolean
+  className?: string
+}
+
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+  closeOnEsc = true,
+  closeOnOverlayClick = true,
+  className,
+}: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement | null>(null)
+  const titleId = useId()
+
+  useEffect(() => {
+    if (!open || !closeOnEsc) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.removeEventListener('keydown', onKeyDown) }
+  }, [open, closeOnEsc, onClose])
+
+  useEffect(() => {
+    if (open) {
+      dialogRef.current?.focus()
+    }
+  }, [open])
+
+  if (!open) return null
+
+  return (
+    <Portal>
+      <div className={css.modalHost}>
+        <div
+          className={css.modalMask}
+          aria-hidden="true"
+          onClick={closeOnOverlayClick ? onClose : undefined}
+        />
+        <div
+          ref={dialogRef}
+          className={[css.modalDialog, className].filter(Boolean).join(' ')}
+          data-size={size}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={title ? titleId : undefined}
+          tabIndex={-1}
+        >
+          {(title !== undefined || description !== undefined) && (
+            <header className={css.modalHeader}>
+              <div className={css.modalHeading}>
+                {title !== undefined && <h3 id={titleId} className={css.modalTitle}>{title}</h3>}
+                {description !== undefined && <p className={css.modalDescription}>{description}</p>}
+              </div>
+              <button
+                type="button"
+                className={css.iconButton}
+                aria-label="Close dialog"
+                onClick={onClose}
+              >
+                ✕
+              </button>
+            </header>
+          )}
+          <div className={css.modalBody}>{children}</div>
+          {footer !== undefined && <footer className={css.modalFooter}>{footer}</footer>}
+        </div>
+      </div>
+    </Portal>
+  )
+}
+
+export type PopoverPlacement = 'top' | 'bottom' | 'left' | 'right'
+
+export interface PopoverProps {
+  open?: boolean
+  defaultOpen?: boolean
+  onOpenChange?: (open: boolean) => void
+  trigger: ReactNode
+  content: ReactNode
+  placement?: PopoverPlacement
+  closeOnClickOutside?: boolean
+  closeOnEsc?: boolean
+  className?: string
+}
+
+export function Popover({
+  open: controlledOpen,
+  defaultOpen = false,
+  onOpenChange,
+  trigger,
+  content,
+  placement = 'bottom',
+  closeOnClickOutside = true,
+  closeOnEsc = true,
+  className,
+}: PopoverProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen)
+  const isOpen = controlledOpen !== undefined ? controlledOpen : uncontrolledOpen
+  const triggerRef = useRef<HTMLDivElement | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
+  const [coords, setCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+
+  const setOpen = (next: boolean) => {
+    if (controlledOpen === undefined) setUncontrolledOpen(next)
+    onOpenChange?.(next)
+  }
+
+  const updatePosition = () => {
+    if (!triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    const gap = 6
+    let top = 0
+    let left = 0
+
+    if (placement === 'bottom') {
+      top = rect.bottom + gap
+      left = rect.left
+    } else if (placement === 'top') {
+      top = rect.top - gap
+      left = rect.left
+    } else if (placement === 'left') {
+      top = rect.top
+      left = rect.left - gap
+    } else if (placement === 'right') {
+      top = rect.top
+      left = rect.right + gap
+    }
+
+    setCoords({ top, left })
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition()
+      const onScrollOrResize = () => { updatePosition() }
+      window.addEventListener('resize', onScrollOrResize)
+      window.addEventListener('scroll', onScrollOrResize, true)
+      return () => {
+        window.removeEventListener('resize', onScrollOrResize)
+        window.removeEventListener('scroll', onScrollOrResize, true)
+      }
+    }
+  }, [isOpen, placement])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const onMouseDown = (e: MouseEvent) => {
+      if (!closeOnClickOutside) return
+      const target = e.target as Node | null
+      if (
+        triggerRef.current?.contains(target) ||
+        panelRef.current?.contains(target)
+      ) {
+        return
+      }
+      setOpen(false)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (closeOnEsc && e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isOpen, closeOnClickOutside, closeOnEsc])
+
+  return (
+    <>
+      <div
+        ref={triggerRef}
+        className={css.popoverTriggerWrapper}
+        onClick={() => { setOpen(!isOpen) }}
+      >
+        {trigger}
+      </div>
+      {isOpen && (
+        <Portal>
+          <div
+            ref={panelRef}
+            className={[css.popoverPanel, className].filter(Boolean).join(' ')}
+            style={{
+              top: `${coords.top}px`,
+              left: `${coords.left}px`,
+            }}
+          >
+            {content}
+          </div>
+        </Portal>
+      )}
+    </>
+  )
+}
+
+export interface DropdownItem {
+  id: string
+  label: ReactNode
+  icon?: ReactNode
+  disabled?: boolean
+  danger?: boolean
+  onClick?: () => void
+}
+
+export interface DropdownProps {
+  trigger: ReactNode
+  items: readonly DropdownItem[]
+  placement?: PopoverPlacement
+  className?: string
+}
+
+export function Dropdown({ trigger, items, placement = 'bottom', className }: DropdownProps) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+      trigger={trigger}
+      placement={placement}
+      {...(className !== undefined ? { className } : {})}
+      content={
+        <div className={css.dropdownMenu} role="menu">
+          {items.map(item => (
+            <button
+              key={item.id}
+              type="button"
+              role="menuitem"
+              className={css.dropdownItem}
+              disabled={item.disabled}
+              data-danger={item.danger || undefined}
+              onClick={() => {
+                if (item.disabled) return
+                setOpen(false)
+                item.onClick?.()
+              }}
+            >
+              {item.icon && <span className={css.dropdownItemIcon}>{item.icon}</span>}
+              <span className={css.dropdownItemLabel}>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      }
+    />
   )
 }

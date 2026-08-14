@@ -8,6 +8,7 @@ import type {
 } from '../src/client/contract.ts'
 import { FabricController } from '../src/client/controller.ts'
 import { FabricRuntimeService } from '../src/client/service.ts'
+import { FabricThemeManager } from '../src/client/theme.ts'
 
 type RuntimeExports = {
   SlotRegistry: new (ctx: Context) => SlotRegistryInstance
@@ -89,7 +90,7 @@ async function bootFabric(declareSlots: boolean): Promise<{
   await ctx.plugin({
     name: 'fabric-service-test',
     inject: ['slots'],
-    apply: (pluginCtx: Context) => { new FabricRuntimeService(pluginCtx, emptyController()) },
+    apply: (pluginCtx: Context) => { new FabricRuntimeService(pluginCtx, emptyController(), new FabricThemeManager()) },
   }).await()
   return { ctx, slots, declare }
 }
@@ -134,6 +135,28 @@ describe('FabricRuntimeService.register', () => {
     for (const key of ['fabric.page', 'fabric.toolbar.action', 'fabric.overlay', 'fabric.settings']) {
       expect(slots.entries(key), key).toHaveLength(0)
     }
+    await ctx.fiber.dispose()
+  })
+
+  it('manages theme contribution lifecycle through the downstream plugin fiber', async () => {
+    const { ctx } = await bootFabric(true)
+    const downstream = ctx.plugin({
+      name: 'fabric-theme-test-plugin',
+      inject: ['fabric'],
+      apply: (pluginCtx: Context) => {
+        pluginCtx.fabric.register({
+          kind: 'theme',
+          id: 'test-theme',
+          tokens: { '--dsw-alias-bg-base': '#abcdef' },
+        })
+      },
+    })
+
+    await downstream.await()
+    expect(ctx.fabric.theme.getTokens('global')['--dsw-alias-bg-base']).toBe('#abcdef')
+
+    await downstream.dispose()
+    expect(ctx.fabric.theme.getTokens('global')['--dsw-alias-bg-base']).toBeUndefined()
     await ctx.fiber.dispose()
   })
 

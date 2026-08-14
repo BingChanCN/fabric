@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {
   HostObservable, PropsRuntime, SlotComponent, SlotLabel,
@@ -25,6 +26,9 @@ export interface FabricPageEntry {
   readonly id: string
   readonly label: string
   readonly order: number
+  readonly icon?: ReactNode
+  readonly badge?: string | number
+  readonly keepAlive?: boolean
 }
 
 export interface FabricSnapshot {
@@ -72,6 +76,12 @@ export interface FabricPageContribution extends FabricContributionBase {
   kind: 'page'
   /** Navigation label. A thunk may resolve the current locale lazily. */
   label: SlotLabel
+  /** Optional icon displayed in navigation (ReactNode or SVG). */
+  icon?: ReactNode
+  /** Optional badge or counter indicator. */
+  badge?: string | number
+  /** Whether to retain component state when navigating away (default: true). */
+  keepAlive?: boolean
   component: SlotComponent<FabricPageProps>
 }
 
@@ -90,11 +100,32 @@ export interface FabricSettingsContribution extends FabricContributionBase {
   component: SlotComponent<FabricSettingsProps>
 }
 
+export interface FabricThemeContribution extends FabricContributionBase {
+  kind: 'theme'
+  tokens: Record<string, string>
+  priority?: number
+  scope?: 'global' | 'workbench'
+}
+
 export type FabricContribution =
   | FabricPageContribution
   | FabricToolbarContribution
   | FabricOverlayContribution
   | FabricSettingsContribution
+  | FabricThemeContribution
+
+export interface FabricThemeSetOptions {
+  priority?: number
+  scope?: 'global' | 'workbench'
+}
+
+export interface FabricThemeService {
+  setTokens(id: string, tokens: Record<string, string>, options?: FabricThemeSetOptions): () => void
+  clearTokens(id: string): void
+  getTokens(scope?: 'global' | 'workbench'): Record<string, string>
+  onThemeChange(listener: (theme: { dark: boolean }) => void): () => void
+  isDark(): boolean
+}
 
 /** Browser service exposed as `ctx.fabric`. */
 export interface FabricService extends HostObservable<FabricSnapshot> {
@@ -106,6 +137,7 @@ export interface FabricService extends HostObservable<FabricSnapshot> {
   navigate(pageId: string): void
   notify(message: string, options?: FabricNoticeOptions): () => void
   dismissNotice(id: string): void
+  readonly theme: FabricThemeService
 }
 
 declare module '@deepseek-ai/cordis' {

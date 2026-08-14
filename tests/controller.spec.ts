@@ -26,7 +26,14 @@ class MutableCatalog implements FabricPageCatalog {
   }
 }
 
-const page = (id: string, order: number, label = id): FabricPageEntry => ({ id, order, label })
+const page = (id: string, order: number, label = id, extra: Partial<FabricPageEntry> = {}): FabricPageEntry => ({
+  id,
+  order,
+  label,
+  keepAlive: extra.keepAlive !== false,
+  ...(extra.icon !== undefined ? { icon: extra.icon } : {}),
+  ...(extra.badge !== undefined ? { badge: extra.badge } : {}),
+})
 
 afterEach(() => { vi.useRealTimers() })
 
@@ -42,8 +49,8 @@ describe('FabricController', () => {
     controller.start()
 
     expect(controller.getSnapshot().pages).toEqual([
-      { id: 'alpha', label: 'alpha', order: 10 },
-      { id: 'beta', label: 'Beta', order: 20 },
+      { id: 'alpha', label: 'alpha', order: 10, keepAlive: true },
+      { id: 'beta', label: 'Beta', order: 20, keepAlive: true },
     ])
     expect(controller.getSnapshot().activePage).toBe('alpha')
 
@@ -54,8 +61,8 @@ describe('FabricController', () => {
       open: true,
       activePage: 'gamma',
       pages: [
-        { id: 'gamma', label: 'Gamma', order: 5 },
-        { id: 'alpha', label: 'Alpha', order: 10 },
+        { id: 'gamma', label: 'Gamma', order: 5, keepAlive: true },
+        { id: 'alpha', label: 'Alpha', order: 10, keepAlive: true },
       ],
     })
     controller.dispose()
