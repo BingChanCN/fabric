@@ -22,20 +22,20 @@
       "inject": [
         "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-ui-slots",
-        "@cortexkit/fabric"
+        "fabric"
       ],
       "platform": "web"
     }
   },
   "peerDependencies": {
-    "@cortexkit/fabric": "^0.1.0",
+    "fabric": "^0.1.0",
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
     "react": "^18.2.0"
   },
   "devDependencies": {
-    "@cortexkit/fabric": "^0.1.0",
+    "fabric": "^0.1.0",
     "tsdown": "0.22.2",
     "typescript": "~5.7.2"
   },
@@ -43,7 +43,7 @@
 }
 ```
 
-`dsh.client.inject` 必须列出客户端直接使用的 DSH 模块。若组件导入 `@deepseek-ai/dsh-client-ui-primitives`，也要把它加入 inject 和 peer/dev dependencies。`@cortexkit/fabric` 用于保证框架先于下游客户端激活。
+`dsh.client.inject` 必须列出客户端直接使用的 DSH 模块。若组件导入 `@deepseek-ai/dsh-client-ui-primitives`，也要把它加入 inject 和 peer/dev dependencies。`fabric` 用于保证框架先于下游客户端激活。
 
 ## 2. Profile patch
 
@@ -69,8 +69,8 @@ export function apply(_ctx: Context): void {}
 
 ```tsx
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type { FabricPageProps } from '@cortexkit/fabric/client'
-import { Page, PageHeader, Section } from '@cortexkit/fabric/ui'
+import type { FabricPageProps } from 'fabric/client'
+import { Page, PageHeader, Section } from 'fabric/ui'
 
 export const inject = ['fabric'] as const
 
@@ -113,7 +113,7 @@ ctx.fabric.register({ kind: 'settings', id: 'jobs-settings', component: JobsSett
 页面可从标准 props 读取当前会话，并让 JSON client 自动附加 query：
 
 ```ts
-import { createJsonClient } from '@cortexkit/fabric/sdk'
+import { createJsonClient } from 'fabric/sdk'
 
 const client = createJsonClient({ sessionId: () => sessionId })
 const value = await client.get<{ count: number }>('/my-plugin/jobs')
@@ -125,7 +125,7 @@ const value = await client.get<{ count: number }>('/my-plugin/jobs')
 await client.post('/my-plugin/settings', { enabled: true }, { session: false })
 ```
 
-Host 半部应通过 DSH 的 `webServer.register(...)` 提供同源路由。需要加载状态时使用 `createAsyncResource()`；需要推送时使用 `createEventStream()`。`@cortexkit/fabric/sdk` 和 `@cortexkit/fabric/ui` 是值导入，构建预设会把它们打入下游 bundle。
+Host 半部应通过 DSH 的 `webServer.register(...)` 提供同源路由。需要加载状态时使用 `createAsyncResource()`；需要推送时使用 `createEventStream()`。`fabric/sdk` 和 `fabric/ui` 是值导入，构建预设会把它们打入下游 bundle。
 
 ## 5. 构建
 
@@ -133,7 +133,7 @@ Host 半部应通过 DSH 的 `webServer.register(...)` 提供同源路由。需�
 
 ```ts
 import { defineConfig } from 'tsdown'
-import { fabricPlugin } from '@cortexkit/fabric/build'
+import { fabricPlugin } from 'fabric/build'
 
 export default defineConfig(fabricPlugin({
   id: 'my-fabric-plugin',
@@ -147,8 +147,8 @@ export default defineConfig(fabricPlugin({
 以下运行时导入会被构建器拒绝：
 
 ```ts
-import '@cortexkit/fabric'
-import { apply } from '@cortexkit/fabric/client'
+import 'fabric'
+import { apply } from 'fabric/client'
 ```
 
 应改为 `import type`，并在运行时调用 `ctx.fabric`。这保证浏览器中只有一个 Fabric 服务。
@@ -158,7 +158,7 @@ import { apply } from '@cortexkit/fabric/client'
 先安装 Fabric，再安装下游 bundle：
 
 ```sh
-dsh plugin --profile web add @cortexkit/fabric
+dsh plugin --profile web add fabric
 dsh plugin --profile web add ./my-fabric-plugin
 dsh --profile web
 ```

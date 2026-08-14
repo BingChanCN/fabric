@@ -68,11 +68,11 @@ Fabric 的单元测试使用真实 Cordis `Service` 和 DSH rc.6 发布的 `Slot
 
 Fabric 是带 `dsh.bundle.patch` 的 profile bundle。Node 入口当前为空，客户端能力全部位于预构建的 `lib/client.js`。
 
-`@cortexkit/fabric/build` 生成 DSH 要求的 `window.__ModuleLoader__.load(...)` 闭包：
+`fabric/build` 生成 DSH 要求的 `window.__ModuleLoader__.load(...)` 闭包：
 
 - React、Cordis 和 DSH 模块保持 external，由宿主模块表提供；
-- `@cortexkit/fabric/sdk` 与 `@cortexkit/fabric/ui` 打入下游 bundle；
-- 对 `@cortexkit/fabric` 或 `@cortexkit/fabric/client` 的运行时导入直接报错，防止复制框架服务；
+- `fabric/sdk` 与 `fabric/ui` 打入下游 bundle；
+- 对 `fabric` 或 `fabric/client` 的运行时导入直接报错，防止复制框架服务；
 - CSS Modules 经 Lightning CSS 编译并以内联 style 标签按插件 ID 更新。
 
 公开声明手写存放在 `types/`。`pnpm verify` 同时用下游示例编译和 tarball 契约检查约束声明与产物。

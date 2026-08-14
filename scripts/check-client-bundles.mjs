@@ -29,7 +29,7 @@ const externals = {
 const checks = [
   {
     file: 'lib/client.js',
-    id: '@cortexkit/fabric',
+    id: 'fabric',
     inject: ['slots', 'locale'],
     requires: [
       '@deepseek-ai/cordis',
@@ -41,7 +41,7 @@ const checks = [
   },
   {
     file: 'examples/hello-fabric/lib/client.js',
-    id: '@cortexkit/fabric-example',
+    id: 'hello-fabric',
     inject: ['fabric'],
     requires: [
       '@deepseek-ai/dsh-client-ui-primitives',

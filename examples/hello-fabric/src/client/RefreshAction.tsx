@@ -1,6 +1,6 @@
 import { IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
-import { ToolbarButton } from '@cortexkit/fabric/ui'
-import type { FabricToolbarActionProps } from '@cortexkit/fabric/client'
+import { ToolbarButton } from 'fabric/ui'
+import type { FabricToolbarActionProps } from 'fabric/client'
 
 export function RefreshAction({ notify, activePage }: FabricToolbarActionProps) {
   return (

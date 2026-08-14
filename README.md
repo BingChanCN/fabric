@@ -12,26 +12,26 @@ Fabric 是面向 DeepSeek Harness（DSH）客户端插件的组合式前端框�
 pnpm install
 pnpm build
 pnpm pack --pack-destination .pack-probe
-dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/cortexkit-fabric-0.1.0.tgz"
+dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/fabric-0.1.0.tgz"
 dsh --profile web
 ```
 
 发布后直接安装包名：
 
 ```sh
-dsh plugin --profile web add @cortexkit/fabric
+dsh plugin --profile web add fabric
 ```
 
 Fabric 的浏览器产物是预构建的 `lib/client.js`；DSH 不会现场编译 TypeScript 源码。Windows 上不要用跨盘 `link:D:/...` 安装本地 checkout：pnpm 10.18.3 会在位于其他盘符的 profile 中生成坏链接。本项目的安装验收使用真实 tarball。
 
 ## 下游插件
 
-下游客户端只通过 `ctx.fabric.register(...)` 注册贡献。组件类型从 `@cortexkit/fabric/client` 做类型导入；运行时不要导入 Fabric 主入口或客户端入口。
+下游客户端只通过 `ctx.fabric.register(...)` 注册贡献。组件类型从 `fabric/client` 做类型导入；运行时不要导入 Fabric 主入口或客户端入口。
 
 ```tsx
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type { FabricPageProps } from '@cortexkit/fabric/client'
-import { Page, PageHeader } from '@cortexkit/fabric/ui'
+import type { FabricPageProps } from 'fabric/client'
+import { Page, PageHeader } from 'fabric/ui'
 
 export const inject = ['fabric'] as const
 
@@ -66,10 +66,10 @@ export function apply(ctx: ClientContext): void {
 
 ## 工具包
 
-- `@cortexkit/fabric/client`：`ctx.fabric`、贡献对象和组件 props 类型。
-- `@cortexkit/fabric/sdk`：会话感知 JSON client、可取消的 latest-request-wins 资源、自动重连 SSE。
-- `@cortexkit/fabric/ui`：页面、区段、异步状态、徽标和工具栏按钮。
-- `@cortexkit/fabric/build`：生成 DSH ModuleLoader 客户端闭包的 `tsdown` 预设，并内联 CSS Modules。
+- `fabric/client`：`ctx.fabric`、贡献对象和组件 props 类型。
+- `fabric/sdk`：会话感知 JSON client、可取消的 latest-request-wins 资源、自动重连 SSE。
+- `fabric/ui`：页面、区段、异步状态、徽标和工具栏按钮。
+- `fabric/build`：生成 DSH ModuleLoader 客户端闭包的 `tsdown` 预设，并内联 CSS Modules。
 
 完整开发流程见 [插件开发指南](docs/plugin-development.md)，边界与生命周期见 [架构说明](docs/architecture.md)。仓库中的 [hello-fabric](examples/hello-fabric) 是可构建、可安装的最小完整示例。
 

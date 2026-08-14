@@ -1,5 +1,5 @@
 {
-  "name": "@cortexkit/fabric-example",
+  "name": "hello-fabric",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -18,7 +18,7 @@
         "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-ui-primitives",
         "@deepseek-ai/dsh-client-ui-slots",
-        "@cortexkit/fabric"
+        "fabric"
       ],
       "platform": "web"
     }
@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@cortexkit/fabric": "^0.1.0",
+    "fabric": "^0.1.0",
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",
@@ -37,7 +37,7 @@
     "react": "^18.2.0"
   },
   "devDependencies": {
-    "@cortexkit/fabric": "workspace:*",
+    "fabric": "workspace:*",
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",

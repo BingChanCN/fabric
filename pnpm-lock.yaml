@@ -69,9 +69,6 @@ importers:
 
   examples/hello-fabric:
     devDependencies:
-      '@cortexkit/fabric':
-        specifier: workspace:*
-        version: link:../..
       '@deepseek-ai/cordis':
         specifier: ^4.0.1
         version: 4.0.1(@deepseek-ai/cordis-plugin-include@1.0.6)(@deepseek-ai/cordis-plugin-loader@1.0.2)
@@ -93,6 +90,9 @@ importers:
       '@types/react':
         specifier: ~18.3.1
         version: 18.3.31
+      fabric:
+        specifier: workspace:*
+        version: link:../..
       react:
         specifier: ^18.3.1
         version: 18.3.1

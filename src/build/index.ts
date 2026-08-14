@@ -123,7 +123,7 @@ export function fabricClient(options: FabricClientBuildOptions): UserConfig {
     plugins: [{
       name: 'fabric-runtime-import-boundary',
       resolveId(source: string) {
-        if (source === '@cortexkit/fabric' || source === '@cortexkit/fabric/client') {
+        if (source === 'fabric' || source === 'fabric/client') {
           throw new Error(
             `fabric build: runtime import "${source}" would duplicate the framework; use ctx.fabric and type-only imports instead`,
           )
@@ -161,7 +161,7 @@ export function fabricPlugin(options: FabricPluginBuildOptions): UserConfig[] {
     dts: false,
     sourcemap: options.sourcemap ?? true,
     clean: false,
-    deps: { neverBundle: [/^@deepseek-ai\//, /^@cortexkit\//] },
+    deps: { neverBundle: [/^@deepseek-ai\//] },
     outputOptions: { entryFileNames: '[name].js' },
   }, client]
 }

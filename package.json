@@ -1,5 +1,5 @@
 {
-  "name": "@cortexkit/fabric",
+  "name": "fabric",
   "version": "0.1.0",
   "description": "Composable frontend framework for DeepSeek Harness plugins",
   "type": "module",
@@ -50,7 +50,7 @@
   ],
   "scripts": {
     "build": "npm run clean && npm run typecheck && tsdown",
-    "build:example": "pnpm --filter @cortexkit/fabric-example build",
+    "build:example": "pnpm --filter hello-fabric build",
     "clean": "node scripts/clean.mjs",
     "prepare": "tsdown",
     "test": "vitest run",

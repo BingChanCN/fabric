@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { createJsonClient, createAsyncResource } from '@cortexkit/fabric/sdk'
-import { AsyncView, Badge, EmptyState, Page, PageHeader, Section, useAsyncResource } from '@cortexkit/fabric/ui'
-import type { FabricPageProps } from '@cortexkit/fabric/client'
+import { createJsonClient, createAsyncResource } from 'fabric/sdk'
+import { AsyncView, Badge, EmptyState, Page, PageHeader, Section, useAsyncResource } from 'fabric/ui'
+import type { FabricPageProps } from 'fabric/client'
 import css from './example.module.css'
 
 type StatusPayload = {
