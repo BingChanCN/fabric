@@ -5,8 +5,12 @@
 - 一个 `fabric.page` 页面（支持 `icon`、`badge`、`keepAlive` 保活）；
 - 一个工作台工具栏动作；
 - 一个 Plugins 设置贡献；
-- 一个 `kind: 'theme'` 主题 Token 覆盖；
-- 包含 `Modal`、`Dropdown`、`Popover` 交互组件；
+- 一个 `kind: 'theme'` 主题 Token 覆盖（高特异性穿透）；
+- 一个 `kind: 'mod'` ModMenu 身份卡与 `fabric:mods` 页面集成；
+- 一个 `registerConfig` 声明式持久化配置文档与防竞态同步；
+- 一个 `kind: 'command'` 命令面板条目（快捷键 `Mod+Shift+H`）；
+- 一个 `registerCapability` 跨插件能力注册（`hello-status`）；
+- 包含 `Modal`、`Dropdown`、`Popover` 交互组件与 Design Tokens；
 - 两个 DSH host 同源 JSON 路由；
 - `createJsonClient`、`AsyncResource` 和 Fabric UI 组件；
 - 由 `fabricPlugin()` 生成的 Node 与浏览器预构建产物。

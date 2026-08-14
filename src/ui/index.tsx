@@ -556,7 +556,7 @@ function ConfigFieldControl({
       {field.type === 'select' && (
         <select
           id={controlId}
-          className={css.configInput}
+          className={css.configSelect}
           value={typeof value === 'string' ? value : ''}
           disabled={disabled}
           onChange={event => { onChange(event.target.value) }}

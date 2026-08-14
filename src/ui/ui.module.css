@@ -356,27 +356,92 @@
 }
 
 .configInput,
+.configSelect,
 .configTextarea {
   width: 100%;
-  max-width: 360px;
-  padding: 7px 10px;
-  border: 1px solid var(--dsw-alias-border-l3, #d1d5db);
+  max-width: 420px;
+  padding: 8px 12px;
+  border: 1px solid var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.15));
   border-radius: 6px;
-  background: var(--dsw-alias-bg-elevated, #fff);
-  color: var(--dsw-alias-label-primary, #111827);
+  background: var(--dsw-alias-bg-layer-1, var(--dsw-alias-bg-elevated, #1b1b22));
+  color: var(--dsw-alias-label-primary, #ffffff);
   font: inherit;
   font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.configInput:focus,
+.configSelect:focus,
+.configTextarea:focus {
+  border-color: var(--dsw-alias-brand-primary, #4176e6);
+  box-shadow: 0 0 0 2px var(--dsw-alias-interactive-bg-active, rgba(65, 118, 230, 0.2));
+}
+
+.configInput:disabled,
+.configSelect:disabled,
+.configTextarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.configSelect {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888899' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  cursor: pointer;
+}
+
+.configSelect option {
+  background-color: var(--dsw-alias-bg-layer-1, #181820);
+  color: var(--dsw-alias-label-primary, #ffffff);
 }
 
 .configTextarea {
-  min-height: 72px;
+  min-height: 80px;
   resize: vertical;
+  line-height: 1.5;
 }
 
 .configCheckbox {
-  width: 16px;
-  height: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
   margin: 0;
+  border-radius: 4px;
+  border: 1.5px solid var(--dsw-alias-border-l2, #555566);
+  background: var(--dsw-alias-bg-layer-1, #1b1b22);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  vertical-align: middle;
+}
+
+.configCheckbox:checked {
+  background-color: var(--dsw-alias-brand-primary, #4176e6);
+  border-color: var(--dsw-alias-brand-primary, #4176e6);
+}
+
+.configCheckbox:checked::after {
+  content: "";
+  display: block;
+  width: 5px;
+  height: 9px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.configCheckbox:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary, #4176e6);
+  outline-offset: 2px;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }

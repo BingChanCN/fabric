@@ -1,123 +1,183 @@
 # Fabric
 
-Fabric 是面向 DeepSeek Harness（DSH）客户端插件的组合式前端框架。它以一个 profile bundle 的形式安装，一次性接入 DSH 的稳定加法槽位，并向下游插件提供统一的工作台、贡献注册、状态通知、请求生命周期和构建约定。
+> **面向 DeepSeek Harness（DSH）生态的轻量级全栈 Modding 框架与组件系统**
+
+Fabric 为 DSH 插件开发者提供统一的工作台入口、八大类扩展贡献注册、声明式配置引擎、高特异性主题桥接、命令面板与快捷键系统、跨插件能力发现以及官方脚手架 CLI。
 
 当前兼容基线：`@deepseek-ai/dsh@0.1.0-rc.6`。
 
-## 安装
+---
 
-从当前 checkout 构建 tarball，再把 tarball 安装到 Web profile：
+## ⚡ 快速开始
 
+### 1. 一键创建新插件
 ```sh
+npx create-fabric-plugin my-cool-plugin
+cd my-cool-plugin
 pnpm install
 pnpm build
-pnpm pack --pack-destination .pack-probe
+```
+
+### 2. 安装 Fabric 框架至 DSH
+从源码目录构建并安装本地 tarball（或直接安装发布包）：
+
+```sh
+# 本地打包与安装
+pnpm --dir D:/dsh-dev/fabric pack --pack-destination .pack-probe
 dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/fabric-0.4.0.tgz"
+
+# 启动 DSH Web GUI
 dsh --profile web
 ```
 
-发布后直接安装包名：
+---
 
-```sh
-dsh plugin --profile web add fabric
-```
+## 📖 官方文档体系
 
-Fabric 的浏览器产物是预构建的 `lib/client.js`；DSH 不会现场编译 TypeScript 源码。tarball 直接传路径即可，不要加 `link:`/`file:` 前缀（`link:` 仅用于目录 checkout）。Windows 上不要用跨盘 `link:D:/...` 安装本地 checkout：pnpm 10.18.3 会在位于其他盘符的 profile 中生成坏链接。本项目的安装验收使用真实 tarball。
+| 专题指南 | 核心内容 | 链接 |
+|---|---|---|
+| 🚀 **插件开发指南** | 从零手写或构建完整下游插件全流程 | [docs/plugin-development.md](docs/plugin-development.md) |
+| 🛠️ **脚手架 CLI** | `create-fabric-plugin` 参数与模板结构 | [docs/cli.md](docs/cli.md) |
+| 🧩 **UI 组件库与 Token** | 布局、Modal 弹窗、Popover 气泡、Dropdown 下拉、Design Tokens | [docs/components.md](docs/components.md) |
+| ⚙️ **声明式配置与同步** | Schema 表单引擎、防竞态同步机制与 Host 文件持久化 | [docs/configuration.md](docs/configuration.md) |
+| 🎨 **主题系统与 Token 桥接** | 高特异性选择器穿透、多主题优先级仲裁与暗色监听 | [docs/theming.md](docs/theming.md) |
+| ⌨️ **命令、快捷键与能力** | `Mod+K` 命令面板、快捷键分发与跨插件 Capability | [docs/commands-and-capabilities.md](docs/commands-and-capabilities.md) |
+| 🏗️ **架构与设计原理** | 槽位拓扑、Cordis Fiber 生命周期与 Keep-Alive 容器 | [docs/architecture.md](docs/architecture.md) |
+| 📚 **API 参考手册** | 全模块导出类型、函数签名与 Props 字典 | [docs/api-reference.md](docs/api-reference.md) |
 
-## 下游插件
+---
 
-下游客户端只通过 `ctx.fabric.register(...)` 注册贡献。组件类型从 `fabric/client` 做类型导入；运行时不要导入 Fabric 主入口或客户端入口。
+## ✨ 核心特性矩阵
 
-```tsx
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type { FabricPageProps } from 'fabric/client'
-import { Page, PageHeader } from 'fabric/ui'
+### 1. 统一工作台与八类扩展贡献（`fabric/client`）
+下游插件通过 `ctx.fabric.register(...)` 进行注册，所有注册项严格绑定至调用方 Cordis fiber 生命周期（支持 HMR 与卸载自动回滚）：
 
+```ts
 export const inject = ['fabric'] as const
 
-function ActivityPage(_props: FabricPageProps) {
-  return (
-    <Page>
-      <PageHeader title="Activity" />
-    </Page>
-  )
-}
-
 export function apply(ctx: ClientContext): void {
+  // 1. 工作台页面 (支持 keepAlive、icon、badge、pluginId)
   ctx.fabric.register({
     kind: 'page',
     id: 'activity',
-    label: 'Activity',
+    label: '动态监控',
+    icon: '📊',
+    badge: 3,
+    keepAlive: true,
+    pluginId: 'my-plugin',
     component: ActivityPage,
+  })
+
+  // 2. 标题栏动作
+  ctx.fabric.register({ kind: 'toolbar', id: 'refresh', component: RefreshBtn })
+
+  // 3. 全局扩展浮层
+  ctx.fabric.register({ kind: 'overlay', id: 'hud', component: FloatingHud })
+
+  // 4. 设置页插槽
+  ctx.fabric.register({ kind: 'settings', id: 'my-settings', component: SettingsSection })
+
+  // 5. 主题 Token 覆盖 (高特异性穿透宿主深色硬编码)
+  ctx.fabric.register({
+    kind: 'theme',
+    id: 'nord-theme',
+    priority: 10,
+    tokens: { '--dsw-alias-bg-base': '#2e3440' },
+  })
+
+  // 6. ModMenu 身份卡
+  ctx.fabric.register({
+    kind: 'mod',
+    id: 'my-plugin',
+    name: 'My Cool Plugin',
+    version: '0.4.0',
+    description: 'Awesome DSH Mod',
+  })
+
+  // 7. 声明式配置文档
+  ctx.fabric.registerConfig({
+    id: 'my-plugin',
+    title: 'Plugin Settings',
+    schema: {
+      autoSync: { type: 'boolean', title: '自动同步', default: true },
+    },
+  })
+
+  // 8. 命令面板与全局快捷键
+  ctx.fabric.register({
+    kind: 'command',
+    id: 'my-plugin.open',
+    title: '打开监控面板',
+    shortcut: 'Mod+Shift+M',
+    handler: () => ctx.fabric.open('activity'),
   })
 }
 ```
 
-`register()` 接受八类贡献：
+### 2. 声明式配置与防竞态同步（`fabric/ui` & `fabric/sdk`）
+- 在组件中直接使用 `useFabricConfig`：
+  ```tsx
+  import { useFabricConfig } from 'fabric/ui'
 
-| `kind` | 渲染位置 / 作用域 | 说明 / Props |
-|---|---|---|
-| `page` | Fabric 工作台页面 | `FabricPageProps`，支持 `icon`、`badge`、`keepAlive`、`pluginId` |
-| `toolbar` | 工作台标题栏动作 | `FabricToolbarActionProps` |
-| `overlay` | DSH shell 上方的全局扩展层 | `FabricOverlayProps` |
-| `settings` | DSH Plugins 设置页中的 Fabric 区域 | `FabricSettingsProps` |
-| `theme` | 全局 / 工作台 CSS 变量覆盖 | 高特异性 Token 注入，支持 `priority` 冲突仲裁与暗色响应 |
-| `mod` | 内置 ModMenu 身份卡 | 名称、版本、描述、图标 |
-| `config` | 声明式配置文档 | schema 自动生成表单，经 `/fabric/config/:id` 持久化 |
-| `command` | 命令面板 / 全局快捷键 | `Mod+K` 打开面板；`shortcut` 如 `Mod+Shift+H` |
+  function MyComponent() {
+    const config = useFabricConfig<{ autoSync: boolean }>('my-plugin')
+    return (
+      <button onClick={() => config.set({ autoSync: !config.values.autoSync })}>
+        {config.values.autoSync ? '已开启' : '已关闭'}
+      </button>
+    )
+  }
+  ```
+- **防竞态保证**：本地先行更新（Optimistic）、迟到 GET 绝不冲刷本地 Dirty 字段、Seq 版本并发锁、409 冲突自动重试。
+- **Host 自动落盘**：文件自动写入 `$DSH_HOME/fabric/config/<id>.json`。
 
-也可用 `ctx.fabric.registerConfig({ id, title, schema })`。`useFabricConfig(id)` 读取同一份 store：本地先改、GET 不覆盖脏字段、PUT 带 seq，409 时保留本地编辑并重试。
-
-跨插件能力发现：
-
+### 3. 跨插件能力发现（Capability Discovery）
+跨插件无需 npm 强依赖即可解耦调用：
 ```ts
-ctx.fabric.registerCapability('hello-status', { ping: () => 'ok' })
-ctx.fabric.getCapability<{ ping: () => string }>('hello-status')?.ping()
+// 插件 A 暴露能力
+ctx.fabric.registerCapability('task-runner', { runTask: (id) => true })
+
+// 插件 B 消费能力
+const runner = ctx.fabric.getCapability<{ runTask: (id: string) => boolean }>('task-runner')
+runner?.runTask('task-1')
 ```
 
-新建插件：
+### 4. 丰富的基础交互与浮层基建（`fabric/ui`）
+- `Modal` / `Dialog`（支持 ESC、遮罩点击、焦点捕获与 4 种尺寸）
+- `Popover` / `Dropdown`（基于原生轻量计算与 Click-Outside 监听）
+- `Portal`、`Page`、`PageHeader`、`Section`、`AsyncView`、`Badge`、`ToolbarButton`
+- 规范化 `tokens.*` 与 `Z_INDEX.*` 常量
 
-```sh
-npx create-fabric-plugin my-plugin
-```
-
-注册项归属于调用它的下游 Cordis fiber。插件卸载或 HMR 时，对应贡献会自动释放；Fabric 不维护第二套组件注册表。
-
-## 主题与 Token 桥接
-
+### 5. 一键构建预设（`fabric/build`）
 ```ts
-// 注册主题 Token 覆盖（最高特异性注入，跟随宿主暗色切换，卸载自动回滚）
-ctx.fabric.register({
-  kind: 'theme',
-  id: 'my-theme',
-  priority: 10,
-  tokens: {
-    '--dsw-alias-bg-base': '#1e1e2e',
-    '--dsw-alias-label-primary': '#cdd6f4',
-  },
-})
+import { defineConfig } from 'tsdown'
+import { fabricPlugin } from 'fabric/build'
 
-// 或直接通过服务调用
-ctx.fabric.theme.setTokens('quick-accent', { '--dsw-brand-primary': '#a6e3a1' })
+export default defineConfig(fabricPlugin({
+  id: 'my-cool-plugin',
+}))
 ```
 
-## 工具包
+---
 
-- `fabric/client`：`ctx.fabric`、`ctx.fabric.theme`、贡献对象和组件 props 类型。
-- `fabric/sdk`：会话感知 JSON client、可取消的 latest-request-wins 资源、自动重连 SSE、带 seq 的 `ConfigStore`。
-- `fabric/ui`：页面排版、`Modal`、`Popover`、`Dropdown`、`Portal`、`ConfigForm`、`useFabricConfig`、异步状态、徽标、语义 `tokens` 与 `Z_INDEX` 规范。
-- `fabric/build`：生成 DSH ModuleLoader 客户端闭包的 `tsdown` 预设，并内联 CSS Modules。
-
-完整开发流程见 [插件开发指南](docs/plugin-development.md)，边界与生命周期见 [架构说明](docs/architecture.md)。仓库中的 [hello-fabric](examples/hello-fabric) 是可构建、可安装的最小完整示例。
-
-## 验证
+## 🛠️ 工程化与质量保证
 
 ```sh
 pnpm verify
 ```
 
-该命令执行严格 TypeScript 检查、单元与生命周期测试、Fabric 和示例构建、客户端闭包动态执行、真实 tarball 契约检查，以及隔离 `DSH_HOME` 中的 profile 安装与组装 smoke。
+全链回归流程包括：
+- 严格 TypeScript 类型检查（开启 `exactOptionalPropertyTypes`）
+- 14 个测试套件，45 条单元与生命周期测试
+- Fabric host/client/sdk/ui/build/create 六组产物构建
+- `hello-fabric` 真实示例插件编译
+- 动态 ModuleLoader 闭包依赖校验
+- npm tarball 契约检查
+- `create-fabric-plugin` 生成与注入检查
+- 独立临时 `DSH_HOME` 下真实 profile 安装、配置组装与 Web 服务启动 smoke
 
-## License
+---
 
-MIT
+## 📄 开源许可证
+
+[MIT License](LICENSE)
