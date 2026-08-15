@@ -10,6 +10,7 @@ import { FabricCapabilityRegistry } from './capabilities.ts'
 import { FabricCommandRegistry } from './commands.ts'
 import { FabricConfigRegistry } from './config-registry.ts'
 import { FabricController } from './controller.ts'
+import { FabricDialogRegistry } from './dialogs.tsx'
 import type { FabricPageCatalog } from './controller.ts'
 import type { FabricPageEntry, FabricService } from './contract.ts'
 import { FabricRuntimeService } from './service.ts'
@@ -31,9 +32,11 @@ export type { JsonValue } from '../sdk/json.ts'
 export type {
   FabricCapabilityDefinition, FabricCapabilityHandle, FabricClientPluginContext,
   FabricClientPluginDefinition, FabricCommandDefinition, FabricConfigDefinition,
-  FabricConfigHandle, FabricLifecycle, FabricOverlayDefinition, FabricPageActionDefinition, FabricPageActionProps,
+  FabricConfigHandle, FabricCustomPageActionDefinition, FabricDeclarativePageActionDefinition,
+  FabricDialogContentProps, FabricDialogDefinition, FabricDialogHandle, FabricDialogScope, FabricDialogSize, FabricDialogUpdate,
+  FabricHudDefinition, FabricHudProps, FabricLifecycle, FabricPageActionDefinition, FabricPageActionProps,
   FabricPageContext, FabricPageDefinition, FabricPageHandle, FabricPageProps,
-  FabricPluginDescriptor, FabricPluginIdentity, FabricSettingsProps, FabricOverlayProps,
+  FabricPluginDescriptor, FabricPluginIdentity, FabricSettingsProps,
 } from './plugin.ts'
 export { FabricResourceClientService } from './resources.ts'
 export { defineCodec, defineResource, FabricResourceError, jsonCodec, voidCodec } from '../resource/contract.ts'
@@ -84,9 +87,11 @@ export function apply(ctx: ClientContext): void {
     subscribe: (listener) => {
       const stopSlots = ctx.slots.subscribe('fabric.page', listener)
       const stopLocale = ctx.locale.subscribe(listener)
+      const stopMetadata = service.subscribePageMetadata(listener)
       return () => {
         stopSlots()
         stopLocale()
+        stopMetadata()
       }
     },
   }
@@ -148,7 +153,8 @@ export function apply(ctx: ClientContext): void {
   })
   const commands = new FabricCommandRegistry(error => { controller.notify(error.message, { tone: 'error' }) })
   const capabilities = new FabricCapabilityRegistry()
-  service = new FabricRuntimeService(ctx, controller, theme, configs, commands, capabilities)
+  const dialogs = new FabricDialogRegistry()
+  service = new FabricRuntimeService(ctx, controller, theme, configs, commands, capabilities, dialogs)
 
   ctx.effect(() => {
     const stop = controller.start()
@@ -165,6 +171,8 @@ export function apply(ctx: ClientContext): void {
       configs.dispose()
       commands.dispose()
       capabilities.dispose()
+      dialogs.dispose()
+      service.disposeRuntime()
     }
   }, 'fabric: controller lifecycle')
 
@@ -231,13 +239,14 @@ export function apply(ctx: ClientContext): void {
     children: {
       'fabric.page': { kind: 'list', scope: 'session-maybe' },
       'fabric.toolbar.action': { kind: 'list', scope: 'session-maybe' },
-      'fabric.overlay': { kind: 'list', scope: 'session-maybe' },
+      'fabric.hud': { kind: 'list', scope: 'session-maybe' },
     },
     inject: (): WorkbenchInjected => ({
       hooks: { fabric: service },
       ...actions,
       dismissNotice: id => { controller.dismissNotice(id) },
       commands,
+      dialogs,
     }),
   }, Workbench))
 

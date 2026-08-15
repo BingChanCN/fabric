@@ -4,12 +4,13 @@ import * as SlotCoreModule from '@deepseek-ai/dsh-client-ui-slots'
 import type { SlotRegistry as SlotRegistryInstance } from '@deepseek-ai/dsh-client-runtime/client'
 import { describe, expect, it } from 'vitest'
 import type {
-  FabricOverlayProps, FabricPageProps, FabricSettingsProps, FabricToolbarActionProps,
+  FabricHudProps, FabricPageProps, FabricSettingsProps, FabricToolbarActionProps,
 } from '../src/client/contract.ts'
 import { FabricCapabilityRegistry } from '../src/client/capabilities.ts'
 import { FabricCommandRegistry } from '../src/client/commands.ts'
 import { FabricConfigRegistry } from '../src/client/config-registry.ts'
 import { FabricController } from '../src/client/controller.ts'
+import { FabricDialogRegistry } from '../src/client/dialogs.tsx'
 import { FabricRuntimeService } from '../src/client/service.ts'
 import { FabricThemeManager } from '../src/client/theme.ts'
 import type { ConfigResourceTransport } from '../src/sdk/config.ts'
@@ -57,7 +58,7 @@ const SlotRegistry = runtimeExports.SlotRegistry
 
 const EmptyPage = (_props: FabricPageProps): null => null
 const EmptyToolbar = (_props: FabricToolbarActionProps): null => null
-const EmptyOverlay = (_props: FabricOverlayProps): null => null
+const EmptyHud = (_props: FabricHudProps): null => null
 const EmptySettings = (_props: FabricSettingsProps): null => null
 const Root = (): null => null
 
@@ -76,6 +77,7 @@ function emptyController(): FabricController {
 async function bootFabric(declareSlots: boolean): Promise<{
   ctx: Context
   slots: ErasedSlots
+  service: FabricRuntimeService
   declare: () => void
 }> {
   const ctx = new Context()
@@ -90,12 +92,13 @@ async function bootFabric(declareSlots: boolean): Promise<{
       children: {
         'fabric.page': { kind: 'list', scope: 'session-maybe' },
         'fabric.toolbar.action': { kind: 'list', scope: 'session-maybe' },
-        'fabric.overlay': { kind: 'list', scope: 'session-maybe' },
+        'fabric.hud': { kind: 'list', scope: 'session-maybe' },
         'fabric.settings': { kind: 'list', scope: 'root' },
       },
     }, Root)
   }
   if (declareSlots) declare()
+  let service!: FabricRuntimeService
   await ctx.plugin({
     name: 'fabric-service-test',
     inject: ['slots'],
@@ -108,13 +111,31 @@ async function bootFabric(declareSlots: boolean): Promise<{
         commands.dispose()
         capabilities.dispose()
       }, 'test-registry')
-      new FabricRuntimeService(pluginCtx, emptyController(), new FabricThemeManager(), configs, commands, capabilities)
+      service = new FabricRuntimeService(pluginCtx, emptyController(), new FabricThemeManager(), configs, commands, capabilities, new FabricDialogRegistry())
     },
   }).await()
-  return { ctx, slots, declare }
+  return { ctx, slots, service, declare }
 }
 
 describe('FabricRuntimeService.register', () => {
+  it('publishes page badge updates and rejects unknown pages', async () => {
+    const { ctx, service } = await bootFabric(true)
+    const stop = ctx.fabric.register({ kind: 'page', id: 'badge-page', label: 'Badge', component: EmptyPage })
+    let changes = 0
+    const unsubscribe = service.subscribePageMetadata(() => { changes++ })
+
+    ctx.fabric.setPageBadge('badge-page', 3)
+    expect(service.getPageMetadata('badge-page')?.badge).toBe(3)
+    expect(changes).toBe(1)
+    ctx.fabric.setPageBadge('badge-page', undefined)
+    expect(service.getPageMetadata('badge-page')?.badge).toBeUndefined()
+    expect(() => { ctx.fabric.setPageBadge('missing', 1) }).toThrow('is not registered')
+
+    unsubscribe()
+    stop()
+    await ctx.fiber.dispose()
+  })
+
   it('owns active contributions with the downstream plugin fiber', async () => {
     const { ctx, slots } = await bootFabric(true)
     const downstream = ctx.plugin({
@@ -133,9 +154,9 @@ describe('FabricRuntimeService.register', () => {
           component: EmptyToolbar,
         })
         pluginCtx.fabric.register({
-          kind: 'overlay',
-          id: 'active-overlay',
-          component: EmptyOverlay,
+          kind: 'hud',
+          id: 'active-hud',
+          component: EmptyHud,
         })
         pluginCtx.fabric.register({
           kind: 'settings',
@@ -146,12 +167,12 @@ describe('FabricRuntimeService.register', () => {
     })
 
     await downstream.await()
-    for (const key of ['fabric.page', 'fabric.toolbar.action', 'fabric.overlay', 'fabric.settings']) {
+    for (const key of ['fabric.page', 'fabric.toolbar.action', 'fabric.hud', 'fabric.settings']) {
       expect(slots.entries(key), key).toHaveLength(1)
     }
 
     await downstream.dispose()
-    for (const key of ['fabric.page', 'fabric.toolbar.action', 'fabric.overlay', 'fabric.settings']) {
+    for (const key of ['fabric.page', 'fabric.toolbar.action', 'fabric.hud', 'fabric.settings']) {
       expect(slots.entries(key), key).toHaveLength(0)
     }
     await ctx.fiber.dispose()

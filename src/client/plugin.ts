@@ -1,4 +1,4 @@
-import { createElement, type ComponentType, type ReactNode } from 'react'
+import { createElement, useEffect, useMemo, type ComponentType, type ReactNode } from 'react'
 import type {
   FabricConfigSchema, JsonRecord,
 } from '../sdk/config.ts'
@@ -9,7 +9,9 @@ import type {
 import { FabricResourceClientService } from './resources.ts'
 import type { FabricThemeDefinition, FabricThemeProvider } from './theme-contract.ts'
 import type { FabricNoticeOptions, FabricNoticeTone, FabricService } from './contract.ts'
-import type { FabricPageProps as LegacyPageProps, FabricSettingsProps as LegacySettingsProps, FabricToolbarActionProps as LegacyActionProps } from './contract.ts'
+import type { FabricHudProps as RuntimeHudProps, FabricPageProps as LegacyPageProps, FabricSettingsProps as LegacySettingsProps, FabricToolbarActionProps as LegacyActionProps } from './contract.ts'
+import type { FabricDialogDefinition, FabricDialogHandle, FabricDialogScope } from './dialogs.tsx'
+import { DeclarativePageAction } from './components/PageAction.tsx'
 import { runtimePluginId } from '../plugin-identity.ts'
 
 export interface FabricPluginDescriptor {
@@ -33,6 +35,7 @@ export interface FabricPageContext {
   readonly signal: AbortSignal
   readonly resources: FabricResourceClient
   config<T extends JsonRecord = JsonRecord>(id: string): FabricConfigHandle<T>
+  readonly dialogs: FabricDialogScope
   open(pageId?: string): void
   close(): void
   notify(message: string, options?: FabricNoticeOptions): () => void
@@ -49,27 +52,26 @@ export interface FabricPageProps {
 }
 
 export interface FabricPageActionProps {
-  readonly pageId: string | undefined
-  readonly activePage: string | undefined
+  readonly pageId: string
+  readonly activePage: string
+  readonly signal: AbortSignal
+  readonly dialogs: FabricDialogScope
   readonly open: (pageId?: string) => void
   readonly close: () => void
   readonly notify: (message: string, options?: FabricNoticeOptions) => () => void
 }
 
-export interface FabricOverlayProps {
-  readonly pageId: string | undefined
-  readonly open: boolean
-  readonly activePage: string | undefined
-  readonly openFabric: (pageId?: string) => void
-  readonly close: () => void
+export interface FabricHudProps {
+  readonly open: (pageId?: string) => void
   readonly notify: (message: string, options?: FabricNoticeOptions) => () => void
+  readonly dialogs: FabricDialogScope
   readonly config: <T extends JsonRecord = JsonRecord>(id: string) => FabricConfigHandle<T>
 }
 
-export interface FabricOverlayDefinition {
+export interface FabricHudDefinition {
   readonly id: string
   readonly order?: number
-  readonly component: ComponentType<FabricOverlayProps>
+  readonly component: ComponentType<FabricHudProps>
   readonly config?: readonly FabricConfigHandle[]
 }
 
@@ -80,11 +82,29 @@ export interface FabricSettingsProps {
   readonly notify: (message: string, options?: FabricNoticeOptions) => () => void
 }
 
-export interface FabricPageActionDefinition {
+interface FabricPageActionBase {
   readonly id: string
   readonly order?: number
-  readonly component: ComponentType<FabricPageActionProps>
 }
+
+export interface FabricDeclarativePageActionDefinition extends FabricPageActionBase {
+  readonly label: string
+  readonly icon?: ReactNode
+  readonly tone?: 'default' | 'destructive'
+  readonly disabled?: boolean
+  readonly hidden?: boolean
+  readonly tooltip?: string
+  readonly onClick: (context: FabricPageActionProps) => void | Promise<void>
+  readonly render?: never
+}
+
+export interface FabricCustomPageActionDefinition extends FabricPageActionBase {
+  readonly label?: string
+  readonly render: ComponentType<FabricPageActionProps>
+  readonly onClick?: never
+}
+
+export type FabricPageActionDefinition = FabricDeclarativePageActionDefinition | FabricCustomPageActionDefinition
 
 export interface FabricPageDefinition {
   readonly id: string
@@ -102,6 +122,7 @@ export interface FabricPageDefinition {
 export interface FabricPageHandle {
   readonly id: string
   open(): void
+  setBadge(value: string | number | undefined): void
 }
 
 export interface FabricCommandDefinition {
@@ -164,8 +185,9 @@ export interface FabricClientPluginContext {
   readonly config: {
     define<T extends JsonRecord>(definition: FabricConfigDefinition<T>): FabricConfigHandle<T>
   }
-  readonly overlays: {
-    define(definition: FabricOverlayDefinition): () => void
+  readonly dialogs: FabricDialogScope
+  readonly hud: {
+    define(definition: FabricHudDefinition): () => void
   }
   readonly capabilities: {
     provide<T>(definition: FabricCapabilityDefinition<T>): FabricCapabilityHandle<T>
@@ -219,6 +241,39 @@ function asSession(value: unknown): FabricSessionRef | undefined {
   return { id: value }
 }
 
+function MountedPage({
+  view: View,
+  props,
+  fullPageId,
+  service,
+}: {
+  view: ComponentType<FabricPageProps>
+  props: FabricPageProps
+  fullPageId: string
+  service: FabricService
+}) {
+  useEffect(() => () => { service.dialogs.closePage(fullPageId) }, [fullPageId, service])
+  return createElement(View, props)
+}
+
+function MountedPageAction({
+  definition,
+  context,
+}: {
+  definition: FabricPageActionDefinition
+  context: Omit<FabricPageActionProps, 'signal'>
+}) {
+  const controller = useMemo(() => new AbortController(), [])
+  useEffect(() => () => { controller.abort() }, [controller])
+  const scopedContext: FabricPageActionProps = { ...context, signal: controller.signal }
+  return 'render' in definition && definition.render !== undefined
+    ? createElement(definition.render, scopedContext)
+    : createElement(DeclarativePageAction, {
+        definition: definition as FabricDeclarativePageActionDefinition,
+        context: scopedContext,
+      })
+}
+
 function makeClientContext(
   identity: FabricPluginIdentity,
   service: FabricService,
@@ -229,26 +284,45 @@ function makeClientContext(
   const notify = (message: string, options?: FabricNoticeOptions) => service.notify(message, options)
   const open = (pageId?: string): void => { service.open(pageId === undefined ? undefined : scopedId(identity.id, pageId)) }
   const close = (): void => { service.close() }
+  const makeDialogScope = (ownerPageId?: string, pageLocalId?: string): FabricDialogScope => ({
+    open(definition: FabricDialogDefinition): FabricDialogHandle {
+      const localDialogId = definition.id.trim()
+      if (localDialogId === '') throw new Error('fabric dialog id must not be empty')
+      const internalId = pageLocalId === undefined
+        ? `dialog/plugin/${encodeURIComponent(localDialogId)}`
+        : `dialog/page/${encodeURIComponent(pageLocalId)}/${encodeURIComponent(localDialogId)}`
+      const handle = service.dialogs.open(
+        { ...definition, id: scopedId(identity.id, internalId) },
+        { pluginId: identity.id, ...(ownerPageId === undefined ? {} : { pageId: ownerPageId }) },
+      )
+      return Object.freeze({ id: localDialogId, close: handle.close, update: handle.update })
+    },
+  })
+  const dialogs = makeDialogScope()
+  lifecycle.onDispose(() => { service.dialogs.closeOwner(identity.id) })
 
   const pages = {
     define(definition: FabricPageDefinition): FabricPageHandle {
-      const fullId = scopedId(identity.id, definition.id)
+      const pageId = definition.id.trim()
+      const fullId = scopedId(identity.id, pageId)
       const configHandles = new Map((definition.config ?? []).map(handle => [handle.id, handle]))
       const getConfig = <T extends JsonRecord = JsonRecord>(id: string): FabricConfigHandle<T> => {
         const handle = configHandles.get(id) as FabricConfigHandle<T> | undefined
-        if (handle === undefined) throw new Error(`fabric page "${definition.id}" does not expose config "${id}"`)
+        if (handle === undefined) throw new Error(`fabric page "${pageId}" does not expose config "${id}"`)
         return handle
       }
+      const pageDialogs = makeDialogScope(fullId, pageId)
       const pageContext = (raw: unknown): FabricPageProps => {
         const owner = raw as Partial<LegacyPageProps> & { sessionId?: unknown }
         const session = definition.scope === 'session' ? asSession(owner.sessionId) : undefined
         const page: FabricPageContext = {
-          id: definition.id,
+          id: pageId,
           pluginId: identity.id,
           session,
           signal: lifecycle.signal,
           resources,
           config: getConfig,
+          dialogs: pageDialogs,
           open: pageId => { service.open(pageId === undefined ? fullId : scopedId(identity.id, pageId)) },
           close,
           notify,
@@ -272,60 +346,81 @@ function makeClientContext(
         ...(definition.badge === undefined ? {} : { badge: definition.badge }),
         ...(definition.keepAlive === undefined ? {} : { keepAlive: definition.keepAlive }),
         pluginId: identity.id,
-        component: raw => createElement(definition.view, pageContext(raw)),
+        component: raw => createElement(MountedPage, {
+          view: definition.view,
+          props: pageContext(raw),
+          fullPageId: fullId,
+          service,
+        }),
       })
       lifecycle.onDispose(unregister)
 
       for (const action of definition.actions ?? []) {
-        const actionId = scopedId(identity.id, `${definition.id}.${action.id}`)
+        const actionId = action.id.trim()
+        if (actionId === '') throw new Error(`fabric page "${pageId}" action id must not be empty`)
+        const hasRender = 'render' in action && action.render !== undefined
+        const hasClick = 'onClick' in action && action.onClick !== undefined
+        if (hasRender === hasClick) {
+          throw new Error(`fabric page action "${pageId}.${actionId}" must define exactly one of render or onClick`)
+        }
+        if (hasClick && action.label.trim() === '') {
+          throw new Error(`fabric page action "${pageId}.${actionId}" label must not be empty`)
+        }
+        const fullActionId = scopedId(
+          identity.id,
+          `page/${encodeURIComponent(pageId)}/action/${encodeURIComponent(actionId)}`,
+        )
         const stopAction = service.register({
           kind: 'toolbar',
-          id: actionId,
+          id: fullActionId,
           ...(action.order === undefined ? {} : { order: action.order }),
           component: raw => {
             const owner = raw as LegacyActionProps
             const active = localPageId(identity.id, owner.activePage)
-            if (active !== definition.id) return null
-            return createElement(action.component, {
-              pageId: definition.id,
-              activePage: definition.id,
+            if (active !== pageId) return null
+            const context: Omit<FabricPageActionProps, 'signal'> = {
+              pageId,
+              activePage: pageId,
+              dialogs: pageDialogs,
               open: pageId => { service.open(pageId === undefined ? fullId : scopedId(identity.id, pageId)) },
               close,
               notify,
-            })
+            }
+            return createElement(MountedPageAction, { definition: action, context })
           },
         })
         lifecycle.onDispose(stopAction)
       }
 
-      return { id: fullId, open: () => { service.open(fullId) } }
+      return {
+        id: pageId,
+        open: () => { service.open(fullId) },
+        setBadge: value => { service.setPageBadge(fullId, value) },
+      }
     },
     open,
     close,
   }
 
-  const overlays = {
-    define(definition: FabricOverlayDefinition): () => void {
+  const hud = {
+    define(definition: FabricHudDefinition): () => void {
       const configHandles = new Map((definition.config ?? []).map(handle => [handle.id, handle]))
       const getConfig = <T extends JsonRecord = JsonRecord>(id: string): FabricConfigHandle<T> => {
         const handle = configHandles.get(id) as FabricConfigHandle<T> | undefined
-        if (handle === undefined) throw new Error(`fabric overlay "${definition.id}" does not expose config "${id}"`)
+        if (handle === undefined) throw new Error(`fabric HUD "${definition.id}" does not expose config "${id}"`)
         return handle
       }
       const stop = service.register({
-        kind: 'overlay',
+        kind: 'hud',
         id: scopedId(identity.id, definition.id),
         ...(definition.order === undefined ? {} : { order: definition.order }),
         pluginId: identity.id,
         component: raw => {
-          const owner = raw as LegacyPageProps & { fabricOpen?: boolean; activePage?: string }
+          const owner = raw as RuntimeHudProps
           return createElement(definition.component, {
-            pageId: localPageId(identity.id, owner.activePage),
-            open: owner.fabricOpen === true,
-            activePage: localPageId(identity.id, owner.activePage),
-            openFabric: pageId => { service.open(pageId === undefined ? undefined : scopedId(identity.id, pageId)) },
-            close,
+            open: pageId => { owner.openFabric(pageId === undefined ? undefined : scopedId(identity.id, pageId)) },
             notify,
+            dialogs,
             config: getConfig,
           })
         },
@@ -437,7 +532,8 @@ function makeClientContext(
     pages,
     commands,
     config,
-    overlays,
+    dialogs,
+    hud,
     capabilities,
     theme,
     resources,
@@ -502,5 +598,6 @@ export function mountClientPlugin(
 }
 
 export type { FabricNoticeOptions, FabricNoticeTone }
+export type { FabricDialogContentProps, FabricDialogDefinition, FabricDialogHandle, FabricDialogScope, FabricDialogSize, FabricDialogUpdate } from './dialogs.tsx'
 export type { FabricResourceClient, FabricResourceDefinition, FabricResourceHandlers, FabricSessionRef }
 export type { FabricThemeDefinition, FabricThemeProvider }

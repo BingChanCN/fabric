@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { AsyncResource, AsyncResourceSnapshot, Observable } from '../sdk/index.ts'
@@ -163,15 +163,30 @@ export function Badge({ children, tone = 'neutral' }: { children: ReactNode; ton
   return <span className={css.badge} data-tone={tone}>{children}</span>
 }
 
-export function ToolbarButton({ label, icon, onClick, disabled }: {
+export function ToolbarButton({ label, icon, onClick, disabled, loading = false, tone = 'default', tooltip }: {
   label: string
-  icon: ReactNode
+  icon?: ReactNode
   onClick: () => void
   disabled?: boolean
+  loading?: boolean
+  tone?: 'default' | 'destructive'
+  tooltip?: string
 }) {
   return (
-    <button type="button" className={css.iconButton} aria-label={label} title={label} onClick={onClick} disabled={disabled}>
-      {icon}
+    <button
+      type="button"
+      className={css.iconButton}
+      data-tone={tone}
+      data-text={icon === undefined ? true : undefined}
+      aria-label={label}
+      aria-busy={loading || undefined}
+      title={tooltip ?? label}
+      onClick={onClick}
+      disabled={disabled === true || loading}
+    >
+      {loading
+        ? <span className={css.spinner} aria-hidden />
+        : icon ?? <span className={css.toolbarLabel}>{label}</span>}
     </button>
   )
 }
@@ -211,6 +226,12 @@ export interface ModalProps {
   children?: ReactNode
   footer?: ReactNode
   size?: 'sm' | 'md' | 'lg' | 'full'
+  /** Modal by default. Non-modal dialogs omit the mask and leave the shell interactive. */
+  modal?: boolean
+  /** Focus the dialog when it opens or becomes the active item in a managed stack. */
+  autoFocus?: boolean
+  /** Covered stack entries are inert and hidden from assistive technology. */
+  active?: boolean
   closeOnEsc?: boolean
   closeOnOverlayClick?: boolean
   className?: string
@@ -224,44 +245,72 @@ export function Modal({
   children,
   footer,
   size = 'md',
+  modal = true,
+  autoFocus = true,
+  active = true,
   closeOnEsc = true,
   closeOnOverlayClick = true,
   className,
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement | null>(null)
+  const modalHostRef = useRef<HTMLDivElement | null>(null)
   const titleId = useId()
+  const applyHostState = useCallback((node: HTMLDivElement | null): void => {
+    modalHostRef.current = node
+    if (node !== null) {
+      node.toggleAttribute('inert', !active)
+      ;(node as HTMLDivElement & { inert?: boolean }).inert = !active
+    }
+  }, [active])
+  const captureDialog = useCallback((node: HTMLDivElement | null): void => {
+    dialogRef.current = node
+    if (node !== null && open && active && autoFocus) node.focus()
+  }, [active, autoFocus, open])
 
   useEffect(() => {
-    if (!open || !closeOnEsc) return
+    const host = modalHostRef.current
+    if (host !== null) {
+      host.toggleAttribute('inert', !active)
+      ;(host as HTMLDivElement & { inert?: boolean }).inert = !active
+    }
+  }, [active])
+
+  useEffect(() => {
+    if (!open || !active || !closeOnEsc) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => { document.removeEventListener('keydown', onKeyDown) }
-  }, [open, closeOnEsc, onClose])
+  }, [active, open, closeOnEsc, onClose])
 
   useEffect(() => {
-    if (open) {
-      dialogRef.current?.focus()
-    }
-  }, [open])
+    if (open && active && autoFocus) dialogRef.current?.focus()
+  }, [active, autoFocus, open])
 
   if (!open) return null
 
   return (
     <Portal>
-      <div className={css.modalHost}>
+      <div
+        ref={applyHostState}
+        className={css.modalHost}
+        data-modal={modal}
+        aria-hidden={active ? undefined : true}
+      >
+        {modal && (
+          <div
+            className={css.modalMask}
+            aria-hidden="true"
+            onClick={closeOnOverlayClick ? onClose : undefined}
+          />
+        )}
         <div
-          className={css.modalMask}
-          aria-hidden="true"
-          onClick={closeOnOverlayClick ? onClose : undefined}
-        />
-        <div
-          ref={dialogRef}
+          ref={captureDialog}
           className={[css.modalDialog, className].filter(Boolean).join(' ')}
           data-size={size}
           role="dialog"
-          aria-modal="true"
+          aria-modal={active && modal ? true : undefined}
           aria-labelledby={title ? titleId : undefined}
           tabIndex={-1}
         >

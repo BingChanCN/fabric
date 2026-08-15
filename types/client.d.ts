@@ -78,6 +78,22 @@ export interface FabricThemeProvider {
 
 export interface FabricNoticeOptions { readonly tone?: 'info' | 'success' | 'warning' | 'error'; readonly timeoutMs?: number }
 export type FabricNoticeTone = NonNullable<FabricNoticeOptions['tone']>
+export type FabricDialogSize = 'sm' | 'md' | 'lg' | 'full'
+export interface FabricDialogContentProps { readonly dialog: FabricDialogHandle }
+type FabricDialogContent = ReactNode | ComponentType<FabricDialogContentProps>
+export interface FabricDialogDefinition {
+  readonly id: string
+  readonly title?: ReactNode
+  readonly description?: ReactNode
+  readonly content: FabricDialogContent
+  readonly footer?: ReactNode
+  readonly size?: FabricDialogSize
+  readonly modal?: boolean
+  readonly closeOnOverlayClick?: boolean
+}
+export type FabricDialogUpdate = Partial<Omit<FabricDialogDefinition, 'id'>>
+export interface FabricDialogHandle { readonly id: string; close(): void; update(patch: FabricDialogUpdate): void }
+export interface FabricDialogScope { open(definition: FabricDialogDefinition): FabricDialogHandle }
 export interface FabricPluginDescriptor { readonly name: string; readonly description?: string; readonly icon?: ReactNode }
 export interface FabricPluginIdentity extends FabricPluginDescriptor { readonly id: string; readonly packageName: string; readonly version: string }
 export interface FabricLifecycle { readonly signal: AbortSignal; onDispose(cleanup: () => void): void }
@@ -87,6 +103,7 @@ export interface FabricPageContext {
   readonly session: FabricSessionRef | undefined
   readonly signal: AbortSignal
   readonly resources: FabricResourceClient
+  readonly dialogs: FabricDialogScope
   config<T extends JsonRecord = JsonRecord>(id: string): FabricConfigHandle<T>
   open(pageId?: string): void
   close(): void
@@ -102,26 +119,41 @@ export interface FabricPageProps {
   readonly notify: (message: string, options?: FabricNoticeOptions) => () => void
 }
 export interface FabricPageActionProps {
-  readonly pageId: string | undefined
-  readonly activePage: string | undefined
+  readonly pageId: string
+  readonly activePage: string
+  readonly signal: AbortSignal
+  readonly dialogs: FabricDialogScope
   readonly open: (pageId?: string) => void
   readonly close: () => void
   readonly notify: (message: string, options?: FabricNoticeOptions) => () => void
 }
-export interface FabricOverlayProps {
-  readonly pageId: string | undefined
-  readonly open: boolean
-  readonly activePage: string | undefined
-  readonly openFabric: (pageId?: string) => void
-  readonly close: () => void
+export interface FabricHudProps {
+  readonly open: (pageId?: string) => void
   readonly notify: (message: string, options?: FabricNoticeOptions) => () => void
+  readonly dialogs: FabricDialogScope
   readonly config: <T extends JsonRecord = JsonRecord>(id: string) => FabricConfigHandle<T>
 }
-export interface FabricOverlayDefinition { readonly id: string; readonly order?: number; readonly component: ComponentType<FabricOverlayProps>; readonly config?: readonly FabricConfigHandle[] }
+export interface FabricHudDefinition { readonly id: string; readonly order?: number; readonly component: ComponentType<FabricHudProps>; readonly config?: readonly FabricConfigHandle[] }
 export interface FabricSettingsProps { readonly open: (pageId?: string) => void; readonly config: FabricConfigHandle; readonly resources: FabricResourceClient; readonly notify: (message: string, options?: FabricNoticeOptions) => () => void }
-export interface FabricPageActionDefinition { readonly id: string; readonly order?: number; readonly component: ComponentType<FabricPageActionProps> }
+interface FabricPageActionBase { readonly id: string; readonly order?: number }
+export interface FabricDeclarativePageActionDefinition extends FabricPageActionBase {
+  readonly label: string
+  readonly icon?: ReactNode
+  readonly tone?: 'default' | 'destructive'
+  readonly disabled?: boolean
+  readonly hidden?: boolean
+  readonly tooltip?: string
+  readonly onClick: (context: FabricPageActionProps) => void | Promise<void>
+  readonly render?: never
+}
+export interface FabricCustomPageActionDefinition extends FabricPageActionBase {
+  readonly label?: string
+  readonly render: ComponentType<FabricPageActionProps>
+  readonly onClick?: never
+}
+export type FabricPageActionDefinition = FabricDeclarativePageActionDefinition | FabricCustomPageActionDefinition
 export interface FabricPageDefinition { readonly id: string; readonly label: string; readonly order?: number; readonly icon?: ReactNode; readonly badge?: string | number; readonly keepAlive?: boolean; readonly scope?: 'profile' | 'session'; readonly view: ComponentType<FabricPageProps>; readonly actions?: readonly FabricPageActionDefinition[]; readonly config?: readonly FabricConfigHandle[] }
-export interface FabricPageHandle { readonly id: string; open(): void }
+export interface FabricPageHandle { readonly id: string; open(): void; setBadge(value: string | number | undefined): void }
 export interface FabricCommandDefinition { readonly id: string; readonly title: string; readonly description?: string; readonly shortcut?: string; readonly order?: number; readonly run: (signal?: AbortSignal) => void | Promise<void> }
 export interface FabricConfigDefinition<T extends JsonRecord = JsonRecord> { readonly id: string; readonly title: string; readonly description?: string; readonly schema: FabricConfigSchema; readonly settings?: ComponentType<FabricSettingsProps>; readonly valueType?: T }
 export interface FabricConfigHandle<T extends JsonRecord = JsonRecord> {
@@ -141,7 +173,8 @@ export interface FabricClientPluginContext {
   readonly pages: { define(definition: FabricPageDefinition): FabricPageHandle; open(pageId?: string): void; close(): void }
   readonly commands: { define(definition: FabricCommandDefinition): () => void }
   readonly config: { define<T extends JsonRecord>(definition: FabricConfigDefinition<T>): FabricConfigHandle<T> }
-  readonly overlays: { define(definition: FabricOverlayDefinition): () => void }
+  readonly dialogs: FabricDialogScope
+  readonly hud: { define(definition: FabricHudDefinition): () => void }
   readonly capabilities: { provide<T>(definition: FabricCapabilityDefinition<T>): FabricCapabilityHandle<T>; require<T>(id: string, version?: string, scope?: 'profile' | 'session'): T; optional<T>(id: string, version?: string, scope?: 'profile' | 'session'): T | undefined }
   readonly theme: FabricThemeProvider
   readonly resources: FabricResourceClient

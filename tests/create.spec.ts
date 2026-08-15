@@ -29,7 +29,7 @@ describe('create-fabric-plugin', () => {
     expect(host).toContain('defineHostPlugin')
     expect(host).toContain('mountHostPlugin')
     const manifest = renderScaffold('demo-mod')['package.json'] ?? ''
-    expect(manifest).toContain('"@dsh-do/fabric": "^0.6.0"')
+    expect(manifest).toContain('"@dsh-do/fabric": "^0.7.0"')
     expect(manifest).toContain('"inject": [\n        "@dsh-do/fabric"\n      ]')
   })
 })

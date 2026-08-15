@@ -56,18 +56,27 @@ const definition = defineClientPlugin({
       title: 'Prefs',
       schema: { enabled: { type: 'boolean', title: 'Enabled', default: true } },
     })
-    ctx.pages.define({
+    const page = ctx.pages.define({
       id: 'home',
       label: 'Home',
       view: (_props: FabricPageProps) => null,
-      actions: [{ id: 'refresh', component: () => null }],
+      actions: [{ id: 'refresh', label: 'Refresh', onClick: ({ notify }) => { notify('refreshed') } }],
       config: [config],
     })
+    page.setBadge(1)
+    ctx.dialogs.open({ id: 'welcome', title: 'Welcome', content: 'Hello' }).close()
     ctx.commands.define({ id: 'open', title: 'Open', run: () => {} })
     ctx.capabilities.provide({ id: 'api', version: '1', implementation: { ping: () => 1 } })
     const api = ctx.capabilities.require<{ ping(): number }>('api', '1')
     void api.ping()
-    ctx.overlays.define({ id: 'hud', component: () => null })
+    ctx.hud.define({ id: 'hud', component: () => null })
+    // @ts-expect-error overlays was replaced by the narrow hud API in 0.7
+    ctx.overlays.define({ id: 'legacy', component: () => null })
+    ctx.pages.define({
+      id: 'legacy-action', label: 'Legacy', view: () => null,
+      // @ts-expect-error action.component was replaced by declarative actions or action.render
+      actions: [{ id: 'old', component: () => null }],
+    })
     ctx.notify('hello', { tone: 'success' })
   },
 })

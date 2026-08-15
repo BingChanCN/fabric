@@ -11,6 +11,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 
 import { Workbench } from '../src/client/components/Workbench.tsx'
 import type { FabricSnapshot } from '../src/client/contract.ts'
+import { FabricDialogRegistry } from '../src/client/dialogs.tsx'
 
 function StatefulComponent({ testId, label }: { testId: string; label: string }) {
   const [count, setCount] = useState(0)
@@ -63,6 +64,7 @@ describe('Workbench Keep-Alive & Drawer Lifecycle', () => {
       register: () => () => {},
     }
 
+    const dialogs = new FabricDialogRegistry()
     const getProps = () => ({
       renderSlot: renderSlot as any,
       useFabric: useFabric as any,
@@ -71,6 +73,7 @@ describe('Workbench Keep-Alive & Drawer Lifecycle', () => {
       notify,
       dismissNotice,
       commands: commands as any,
+      dialogs,
       t,
       useSessions: () => [] as any,
       useWorkspaces: () => [] as any,

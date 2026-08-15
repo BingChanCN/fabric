@@ -118,7 +118,10 @@ for (const check of checks) {
     fail(check.file, `requires ${JSON.stringify(actualRequires)} instead of ${JSON.stringify(expectedRequires)}`)
   }
 
-  if (check.id !== '@dsh-do/fabric' && !source.includes('require("@dsh-do/fabric")') && !source.includes("require('@dsh-do/fabric')")) {
+  if (check.id === '@dsh-do/fabric') {
+    if (!source.includes('fabric.hud')) fail(check.file, 'singleton bundle does not declare the 0.7 HUD slot')
+    if (source.includes('fabric.overlay')) fail(check.file, 'singleton bundle still declares the deleted overlay slot')
+  } else if (!source.includes('require("@dsh-do/fabric")') && !source.includes("require('@dsh-do/fabric')")) {
     fail(check.file, 'downstream bundle does not consume the Fabric singleton')
   }
   if (source.includes('require("@dsh-do/fabric/ui")') || source.includes('require("@dsh-do/fabric/client")')) {

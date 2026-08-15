@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+
+- **Page 工作单元**：action 默认改为声明式 `label` / `icon` / `tone` / `disabled` / `hidden` / `tooltip` / `onClick`；Promise 自动 pending、异常进入通知、切页时 abort。复杂交互通过互斥的 `render` 逃生口实现。
+- **响应式 badge**：`ctx.pages.define()` 返回的 handle 新增 `setBadge(value)`，更新会立即投影到 Workbench 导航。
+- **Dialog 服务**：新增插件级 `ctx.dialogs.open()` 与页面级 `page.dialogs.open()`；支持 stack、同 id 替换、handle update/close、Esc 只关顶层，以及插件/页面卸载自动回收。
+- **HUD clean break**：删除 `ctx.overlays.define` 与 `fabric.overlay`，改为窄的 `ctx.hud.define` / `fabric.hud`；Popover / Dropdown 继续作为锚定组件。
+- `Modal` 支持 `modal: false`，非模态 host 不截获宿主区域点击。
+
 ## 0.6.0
 
 - **发布闸门**：`prepublishOnly` 跑完整 `verify`；`types:check` 新增手写声明编译探针并接入 verify。

@@ -216,9 +216,31 @@
   cursor: pointer;
 }
 
+.iconButton[data-text="true"] {
+  width: auto;
+  max-width: 180px;
+  padding: 0 10px;
+}
+
+.toolbarLabel {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .iconButton:hover:not(:disabled) {
   color: var(--fabric-content-primary, #111827);
   background: var(--fabric-interaction-hover, #f3f4f6);
+}
+
+.iconButton[data-tone="destructive"] {
+  color: var(--fabric-state-danger-foreground, #991b1b);
+}
+
+.iconButton[data-tone="destructive"]:hover:not(:disabled) {
+  background: var(--fabric-state-danger-surface, rgba(153, 27, 27, 0.14));
 }
 
 .iconButton:disabled {
@@ -236,6 +258,14 @@
   padding: 16px;
   color: var(--fabric-content-primary, #111827);
   font-family: var(--fabric-font-family, system-ui, sans-serif);
+}
+
+.modalHost[data-modal="false"] {
+  pointer-events: none;
+}
+
+.modalHost[data-modal="false"] .modalDialog {
+  pointer-events: auto;
 }
 
 .modalMask {

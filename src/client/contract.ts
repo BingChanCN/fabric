@@ -12,6 +12,7 @@ import type {
 } from '../sdk/config.ts'
 import type { FabricCapabilityService } from './capabilities.ts'
 import type { FabricCommandDefinition, FabricCommandService } from './commands.ts'
+import type { FabricDialogRegistry } from './dialogs.tsx'
 
 /** Tone used by the framework notice stack. */
 export type FabricNoticeTone = 'info' | 'success' | 'warning' | 'error'
@@ -50,20 +51,25 @@ export interface FabricSnapshot {
   readonly revision: number
 }
 
-/** Common actions supplied to a Fabric page at its render site. */
-export interface FabricPageOwnerProps {
+interface FabricOwnerActions {
   closeFabric: () => void
   openFabric: (pageId?: string) => void
   notify: (message: string, options?: FabricNoticeOptions) => () => void
 }
 
+/** Common actions and runtime labels supplied to a Fabric page at its render site. */
+export interface FabricPageOwnerProps extends FabricOwnerActions {
+  fabricPageErrorLabel: string
+  fabricPageRetryLabel: string
+}
+
 /** Owner data supplied to actions in the workbench toolbar. */
-export interface FabricToolbarActionOwnerProps extends FabricPageOwnerProps {
+export interface FabricToolbarActionOwnerProps extends FabricOwnerActions {
   activePage: string | undefined
 }
 
-/** Owner data supplied to framework-level overlays. */
-export interface FabricOverlayOwnerProps extends FabricPageOwnerProps {
+/** Owner data supplied to persistent HUD surfaces outside the workbench drawer. */
+export interface FabricHudOwnerProps extends FabricOwnerActions {
   fabricOpen: boolean
   activePage: string | undefined
 }
@@ -77,7 +83,7 @@ export interface FabricSettingsOwnerProps {
 /** Complete props delivered to each public contribution kind. */
 export type FabricPageProps = PropsRuntime<'fabric.page'>
 export type FabricToolbarActionProps = PropsRuntime<'fabric.toolbar.action'>
-export type FabricOverlayProps = PropsRuntime<'fabric.overlay'>
+export type FabricHudProps = PropsRuntime<'fabric.hud'>
 export type FabricSettingsProps = PropsRuntime<'fabric.settings'>
 
 interface FabricContributionBase {
@@ -107,10 +113,10 @@ export interface FabricToolbarContribution extends FabricContributionBase {
   component: SlotComponent<FabricToolbarActionProps>
 }
 
-export interface FabricOverlayContribution extends FabricContributionBase {
-  kind: 'overlay'
+export interface FabricHudContribution extends FabricContributionBase {
+  kind: 'hud'
   pluginId?: string
-  component: SlotComponent<FabricOverlayProps>
+  component: SlotComponent<FabricHudProps>
 }
 
 export interface FabricSettingsContribution extends FabricContributionBase {
@@ -164,7 +170,7 @@ export interface FabricCommandContribution extends FabricContributionBase {
 export type FabricContribution =
   | FabricPageContribution
   | FabricToolbarContribution
-  | FabricOverlayContribution
+  | FabricHudContribution
   | FabricSettingsContribution
   | FabricThemeContribution
   | FabricModContribution
@@ -210,6 +216,8 @@ export interface FabricService extends HostObservable<FabricSnapshot> {
   navigate(pageId: string): void
   notify(message: string, options?: FabricNoticeOptions): () => void
   dismissNotice(id: string): void
+  /** Update a registered page badge. Normal plugins use the handle returned by pages.define. */
+  setPageBadge(id: string, value: string | number | undefined): void
   /** Theme management service. */
   readonly theme: FabricThemeService
   /** Schema-driven config / mod catalog. */
@@ -218,6 +226,8 @@ export interface FabricService extends HostObservable<FabricSnapshot> {
   readonly commands: FabricCommandService
   /** Cross-plugin named capabilities. */
   readonly capabilities: FabricCapabilityService
+  /** Profile-singleton dialog stack. Normal plugins use context.dialogs. */
+  readonly dialogs: FabricDialogRegistry
   /** Register a persisted config document and auto-render it in settings. */
   registerConfig(definition: Omit<FabricConfigContribution, 'kind'>): () => void
   /** Register a named capability for the calling plugin fiber's lifetime. */
@@ -238,8 +248,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'fabric.page': { kind: 'list'; scope: 'session-maybe'; owner: FabricPageOwnerProps }
     /** Compact commands rendered beside the active page title. */
     'fabric.toolbar.action': { kind: 'list'; scope: 'session-maybe'; owner: FabricToolbarActionOwnerProps }
-    /** Global plugin overlays hosted above the workbench and DSH shell. */
-    'fabric.overlay': { kind: 'list'; scope: 'session-maybe'; owner: FabricOverlayOwnerProps }
+    /** Persistent non-modal HUD surfaces hosted outside the workbench drawer. */
+    'fabric.hud': { kind: 'list'; scope: 'session-maybe'; owner: FabricHudOwnerProps }
     /** Settings sections contributed inside Fabric's Plugins tab. */
     'fabric.settings': { kind: 'list'; scope: 'root'; owner: FabricSettingsOwnerProps }
   }

@@ -2,7 +2,7 @@
 
 > DSH 插件与 DeepSeek Harness 之间的兼容性隔离层。下游业务只依赖 Fabric 公共 API；DSH 破坏性变化由新版 Fabric 吸收。
 
-当前兼容基线：`@deepseek-ai/dsh@0.1.0-rc.6`。本版本 **0.6.0** 是 clean break：每个 Profile 只加载一份 `@dsh-do/fabric` 单例 runtime。
+当前兼容基线：`@deepseek-ai/dsh@0.1.0-rc.6`。Fabric **0.7.0** 在每个 Profile 只加载一份 `@dsh-do/fabric` 单例 runtime，并提供页面工作单元、受作用域管理的 dialog 与 HUD。
 
 ---
 
@@ -51,7 +51,15 @@ export default defineClientPlugin({
       keepAlive: true,
       config: [preferences],
       view: JobsPage,
-      actions: [{ id: 'refresh', component: RefreshAction }],
+      actions: [{
+        id: 'refresh',
+        label: 'Refresh',
+        icon: '↻',
+        onClick: async ({ signal, dialogs }) => {
+          await refreshJobs(signal)
+          dialogs.open({ id: 'done', title: 'Jobs', content: 'Refresh complete.' })
+        },
+      }],
     })
     ctx.commands.define({
       id: 'open',
@@ -89,6 +97,7 @@ export const { inject, apply } = mountHostPlugin('@dsh-do/jobs', '0.1.0', defini
 | [插件开发](docs/plugin-development.md) | define/setup、Page、构建与安装 |
 | [脚手架](docs/cli.md) | `create-fabric-plugin` |
 | [组件](docs/components.md) | Page / Modal / tokens |
+| [Page action 与 Dialog](docs/page-actions-and-dialogs.md) | 声明式 action、动态 badge、dialog scope 与 HUD |
 | [配置](docs/configuration.md) | typed config handle + Resource 持久化 |
 | [主题](docs/theming.md) | `--fabric-*` 语义主题 |
 | [命令与 Capability](docs/commands-and-capabilities.md) | 命令面板与跨插件服务 |

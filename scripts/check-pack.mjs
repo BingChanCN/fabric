@@ -143,8 +143,11 @@ try {
   const clientTypes = await readFile(join(packageRoot, 'types/client.d.ts'), 'utf8')
   if (!clientTypes.includes('defineClientPlugin')) fail('types/client.d.ts does not expose defineClientPlugin')
   if (!clientTypes.includes('FabricClientPluginContext')) fail('types/client.d.ts is missing FabricClientPluginContext')
-  if (clientTypes.includes('registerConfig') || clientTypes.includes("kind: 'mod'")) {
-    fail('types/client.d.ts still exposes the deleted 0.4 contribution API')
+  for (const api of ['FabricDialogScope', 'FabricHudDefinition', 'FabricDeclarativePageActionDefinition', 'setBadge']) {
+    if (!clientTypes.includes(api)) fail(`types/client.d.ts is missing the 0.7 API ${api}`)
+  }
+  if (clientTypes.includes('FabricOverlay') || clientTypes.includes('readonly overlays') || clientTypes.includes('registerConfig') || clientTypes.includes("kind: 'mod'")) {
+    fail('types/client.d.ts still exposes a deleted contribution API')
   }
 
   const build = await readFile(join(packageRoot, 'lib/build.js'), 'utf8')

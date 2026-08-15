@@ -3,6 +3,7 @@ import type {
 } from '@deepseek-ai/dsh-client-ui-slots'
 import type { FabricService } from '../contract.ts'
 import type { FabricLocaleKey } from '../locales.ts'
+import type { FabricDialogRegistry } from '../dialogs.tsx'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -17,11 +18,12 @@ export interface WorkbenchInjected {
   notify: FabricService['notify']
   dismissNotice: (id: string) => void
   commands: FabricService['commands']
+  dialogs: FabricDialogRegistry
 }
 
 export type WorkbenchProps =
   & PropsRuntime<'shell.overlay'>
-  & PropsRenderSlots<'fabric.page' | 'fabric.toolbar.action' | 'fabric.overlay'>
+  & PropsRenderSlots<'fabric.page' | 'fabric.toolbar.action' | 'fabric.hud'>
   & PropsLocale<'fabric'>
   & InjectFace<WorkbenchInjected>
 

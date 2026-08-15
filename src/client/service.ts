@@ -1,9 +1,10 @@
+import { createElement, type ComponentType } from 'react'
 import { Service } from '@deepseek-ai/cordis'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import type {
   FabricCommandContribution, FabricConfigContribution, FabricContribution,
-  FabricModContribution, FabricOverlayContribution, FabricPageContribution,
+  FabricHudContribution, FabricModContribution, FabricPageContribution, FabricPageProps,
   FabricService, FabricSettingsContribution, FabricThemeContribution,
   FabricThemeService, FabricToolbarContribution,
 } from './contract.ts'
@@ -12,6 +13,22 @@ import type { FabricCommandRegistry } from './commands.ts'
 import type { FabricConfigRegistry } from './config-registry.ts'
 import type { FabricController } from './controller.ts'
 import type { FabricThemeManager } from './theme.ts'
+import type { FabricDialogRegistry } from './dialogs.tsx'
+import { PageBoundary } from './components/PageBoundary.tsx'
+
+/** Wrap every registered page inside the DSH slot entry, before the host renderer's boundary. */
+export function guardPageComponent(contribution: FabricPageContribution): FabricPageContribution['component'] {
+  const Page = contribution.component as ComponentType<FabricPageProps>
+  return props => createElement(
+    PageBoundary,
+    {
+      pageId: contribution.id,
+      errorLabel: props.fabricPageErrorLabel,
+      retryLabel: props.fabricPageRetryLabel,
+      children: createElement(Page, props),
+    },
+  )
+}
 
 /**
  * Cordis service facade for downstream plugins.
@@ -22,6 +39,7 @@ import type { FabricThemeManager } from './theme.ts'
  */
 export class FabricRuntimeService extends Service implements FabricService {
   private readonly pageMetadata = new Map<string, Omit<FabricPageContribution, 'component'>>()
+  private readonly pageMetadataListeners = new Set<() => void>()
 
   constructor(
     ctx: Context,
@@ -30,12 +48,32 @@ export class FabricRuntimeService extends Service implements FabricService {
     readonly configs: FabricConfigRegistry,
     readonly commands: FabricCommandRegistry,
     readonly capabilities: FabricCapabilityRegistry,
+    readonly dialogs: FabricDialogRegistry,
   ) {
     super(ctx, 'fabric')
   }
 
   getPageMetadata(id: string): Omit<FabricPageContribution, 'component'> | undefined {
     return this.pageMetadata.get(id)
+  }
+
+  subscribePageMetadata(listener: () => void): () => void {
+    this.pageMetadataListeners.add(listener)
+    return () => { this.pageMetadataListeners.delete(listener) }
+  }
+
+  setPageBadge(id: string, value: string | number | undefined): void {
+    const current = this.pageMetadata.get(id)
+    if (current === undefined) throw new Error(`fabric page "${id}" is not registered`)
+    if (current.badge === value) return
+    const { badge: _badge, ...withoutBadge } = current
+    this.pageMetadata.set(id, value === undefined ? withoutBadge : { ...withoutBadge, badge: value })
+    this.emitPageMetadata()
+  }
+
+  disposeRuntime(): void {
+    this.pageMetadata.clear()
+    this.pageMetadataListeners.clear()
   }
 
   getSnapshot(): ReturnType<FabricService['getSnapshot']> {
@@ -67,8 +105,8 @@ export class FabricRuntimeService extends Service implements FabricService {
         return this.registerPage(slots, contribution)
       case 'toolbar':
         return this.registerToolbar(slots, contribution)
-      case 'overlay':
-        return this.registerOverlay(slots, contribution)
+      case 'hud':
+        return this.registerHud(slots, contribution)
       case 'settings':
         return this.registerSettings(slots, contribution)
     }
@@ -192,11 +230,12 @@ export class FabricRuntimeService extends Service implements FabricService {
       id: contribution.id,
       ...(contribution.order === undefined ? {} : { order: contribution.order }),
       label: contribution.label,
-    }, contribution.component))
+    }, guardPageComponent(contribution)))
 
     const unregister = (): void => {
       unregisterSlot()
       this.pageMetadata.delete(contribution.id)
+      this.emitPageMetadata()
     }
     this.ctx.effect(() => () => { unregister() }, `fabric: page ${contribution.id}`)
     return unregister
@@ -210,12 +249,16 @@ export class FabricRuntimeService extends Service implements FabricService {
     }, contribution.component))
   }
 
-  private registerOverlay(slots: SlotRegistry, contribution: FabricOverlayContribution): () => void {
-    return slots.inject('fabric.overlay', () => slots.register({
-      name: 'fabric.overlay',
+  private registerHud(slots: SlotRegistry, contribution: FabricHudContribution): () => void {
+    return slots.inject('fabric.hud', () => slots.register({
+      name: 'fabric.hud',
       id: contribution.id,
       ...(contribution.order === undefined ? {} : { order: contribution.order }),
     }, contribution.component))
+  }
+
+  private emitPageMetadata(): void {
+    for (const listener of [...this.pageMetadataListeners]) listener()
   }
 
   private registerSettings(slots: SlotRegistry, contribution: FabricSettingsContribution): () => void {

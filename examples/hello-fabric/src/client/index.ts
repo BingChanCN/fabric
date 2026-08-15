@@ -1,7 +1,6 @@
 import { defineClientPlugin, type FabricClientPluginContext, type FabricConfigDefinition, type FabricPageDefinition } from '@dsh-do/fabric/client'
 import { ExamplePage } from './ExamplePage.tsx'
 import { ExampleSettings } from './ExampleSettings.tsx'
-import { RefreshAction } from './RefreshAction.tsx'
 
 const configDefinition: FabricConfigDefinition<{ enabled: boolean }> = {
   id: 'preferences',
@@ -51,13 +50,22 @@ const definition = defineClientPlugin({
     }, { priority: -10 })
 
     const page: FabricPageDefinition = {
-      id: 'home', order: 0, label: 'Hello Fabric', icon: 'HF', badge: '0.5', keepAlive: true,
+      id: 'home', order: 0, label: 'Hello Fabric', icon: 'HF', keepAlive: true,
       scope: 'session',
       config: [preferences],
       view: ExamplePage,
-      actions: [{ id: 'refresh', order: 0, component: RefreshAction }],
+      actions: [{
+        id: 'refresh',
+        order: 0,
+        label: 'Refresh example page',
+        icon: '↻',
+        onClick: ({ notify, pageId }) => {
+          notify(`Refreshed ${pageId}`, { tone: 'info' })
+        },
+      }],
     }
-    ctx.pages.define(page)
+    const pageHandle = ctx.pages.define(page)
+    pageHandle.setBadge('0.7')
     ctx.commands.define({
       id: 'notify',
       title: 'Hello Fabric: Notify',

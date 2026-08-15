@@ -4,6 +4,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { FabricNoticeTone } from '../contract.ts'
 import { CommandPalette } from './CommandPalette.tsx'
+import { DialogHost } from '../dialogs.tsx'
 import type { WorkbenchProps } from './props.ts'
 import css from './Workbench.module.css'
 
@@ -13,52 +14,7 @@ function NoticeIcon({ tone }: { tone: FabricNoticeTone }) {
   return null
 }
 
-interface PageBoundaryProps {
-  pageId: string
-  errorLabel: string
-  retryLabel: string
-  children: ReactNode
-}
-
-interface PageBoundaryState {
-  failed: boolean
-}
-
-/** Isolates a downstream page crash so one bad plugin cannot take down the singleton workbench. */
-class PageBoundary extends Component<PageBoundaryProps, PageBoundaryState> {
-  state: PageBoundaryState = { failed: false }
-
-  static getDerivedStateFromError(): PageBoundaryState {
-    return { failed: true }
-  }
-
-  componentDidCatch(error: unknown): void {
-    console.error(`fabric: page "${this.props.pageId}" crashed`, error)
-  }
-
-  render(): ReactNode {
-    if (this.state.failed) {
-      return (
-        <div className={css.pageError} role="alert">
-          <span className={css.pageErrorHead}>
-            <IconWarningOutline16 size={16} />
-            <span>{this.props.errorLabel}</span>
-          </span>
-          <button
-            type="button"
-            className={css.pageErrorRetry}
-            onClick={() => { this.setState({ failed: false }) }}
-          >
-            {this.props.retryLabel}
-          </button>
-        </div>
-      )
-    }
-    return this.props.children
-  }
-}
-
-/** Swallows a crashing toolbar action; the page header keeps working without it. */
+/** Swallows a crashing additive contribution so the singleton shell stays alive. */
 class SilentBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
 
@@ -67,7 +23,7 @@ class SilentBoundary extends Component<{ children: ReactNode }, { failed: boolea
   }
 
   componentDidCatch(error: unknown): void {
-    console.error('fabric: toolbar action crashed', error)
+    console.error('fabric: contribution crashed', error)
   }
 
   render(): ReactNode {
@@ -84,6 +40,7 @@ export function Workbench({
   notify,
   dismissNotice,
   commands,
+  dialogs,
   t,
 }: WorkbenchProps) {
   const titleId = useId()
@@ -208,9 +165,11 @@ export function Workbench({
                   .filter(page => page.id === snapshot.activePage || (page.keepAlive !== false && visited.has(page.id)))
                   .map(page => (
                     <section key={page.id} className={css.page} hidden={page.id !== snapshot.activePage}>
-                      <PageBoundary pageId={page.id} errorLabel={t('page.error')} retryLabel={t('page.retry')}>
-                        {renderSlot('fabric.page', owner, { only: page.id })}
-                      </PageBoundary>
+                      {renderSlot('fabric.page', {
+                        ...owner,
+                        fabricPageErrorLabel: t('page.error'),
+                        fabricPageRetryLabel: t('page.retry'),
+                      }, { only: page.id })}
                     </section>
                   ))}
               </main>
@@ -220,11 +179,13 @@ export function Workbench({
       )}
 
       <div className={css.extensionLayer}>
-        {renderSlot('fabric.overlay', {
-          ...owner,
-          fabricOpen: snapshot.open,
-          activePage: snapshot.activePage,
-        })}
+        <SilentBoundary>
+          {renderSlot('fabric.hud', {
+            ...owner,
+            fabricOpen: snapshot.open,
+            activePage: snapshot.activePage,
+          })}
+        </SilentBoundary>
       </div>
 
       <div className={css.notices} aria-live="polite" aria-atomic="false">
@@ -248,6 +209,7 @@ export function Workbench({
         placeholder={t('command.paletteHint')}
         empty={t('command.empty')}
       />
+      <DialogHost registry={dialogs} />
     </div>
   )
 }

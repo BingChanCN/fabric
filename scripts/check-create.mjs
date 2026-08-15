@@ -40,8 +40,8 @@ try {
   const manifest = JSON.parse(await readFile(join(target, 'package.json'), 'utf8'))
   if (manifest.name !== 'demo-mod') fail(`unexpected scaffold name ${manifest.name}`)
   if (!manifest.dsh?.client?.inject?.includes('@dsh-do/fabric')) fail('scaffold dsh.client.inject is missing @dsh-do/fabric')
-  if (manifest.peerDependencies?.['@dsh-do/fabric'] !== '^0.6.0') {
-    fail('scaffold peerDependencies does not reference @dsh-do/fabric ^0.6.0')
+  if (manifest.peerDependencies?.['@dsh-do/fabric'] !== '^0.7.0') {
+    fail('scaffold peerDependencies does not reference @dsh-do/fabric ^0.7.0')
   }
   const tsdownConfig = await readFile(join(target, 'tsdown.config.ts'), 'utf8')
   if (!tsdownConfig.includes("from '@dsh-do/fabric/build'")) {

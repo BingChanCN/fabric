@@ -9,9 +9,19 @@ ctx.pages.define({
   id: 'home',
   label: 'Jobs',
   view: JobsPage,
-  actions: [{ id: 'refresh', component: RefreshAction }],
+  actions: [{
+    id: 'refresh',
+    label: 'Refresh',
+    icon: '↻',
+    onClick: async ({ signal, notify }) => {
+      await refreshJobs(signal)
+      notify('Refreshed', { tone: 'success' })
+    },
+  }],
 })
 ```
+
+Promise 未完成时按钮自动进入 pending 并禁止重复点击；异常自动进入通知通道，切页或卸载会 abort `signal`。需要 Dropdown 等复杂交互时改用 `{ id, label, render: CustomAction }`，不能同时声明 `render` 与 `onClick`。
 
 全局 command 属于插件 runtime：进 `Mod+K` 面板，可绑快捷键，不依赖页面实例。
 

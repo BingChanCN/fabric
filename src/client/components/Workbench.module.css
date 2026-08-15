@@ -225,6 +225,18 @@
   color: var(--fabric-state-danger-foreground);
 }
 
+.pageErrorIcon {
+  display: inline-grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .pageErrorRetry {
   padding: 6px 14px;
   border: 1px solid var(--fabric-border-default);

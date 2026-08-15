@@ -95,9 +95,12 @@ export declare function Badge(props: { children: ReactNode; tone?: BadgeTone }):
 
 export interface ToolbarButtonProps {
   label: string
-  icon: ReactNode
+  icon?: ReactNode
   onClick: () => void
   disabled?: boolean
+  loading?: boolean
+  tone?: 'default' | 'destructive'
+  tooltip?: string
 }
 export declare function ToolbarButton(props: ToolbarButtonProps): ReactElement
 
@@ -115,6 +118,9 @@ export interface ModalProps {
   children?: ReactNode
   footer?: ReactNode
   size?: 'sm' | 'md' | 'lg' | 'full'
+  modal?: boolean
+  autoFocus?: boolean
+  active?: boolean
   closeOnEsc?: boolean
   closeOnOverlayClick?: boolean
   className?: string

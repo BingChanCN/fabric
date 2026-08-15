@@ -1,7 +1,7 @@
 import { defineHostPlugin, mountHostPlugin } from '@dsh-do/fabric'
 import { settingsResource, statusResource } from './resources.ts'
 
-const PACKAGE_VERSION = '0.5.0'
+const PACKAGE_VERSION = '0.7.0'
 
 const definition = defineHostPlugin({
   descriptor: {

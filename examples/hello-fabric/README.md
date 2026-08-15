@@ -1,9 +1,9 @@
 # hello-fabric
 
-Fabric 0.5 的最小下游插件：
+Fabric 0.7 的最小下游插件：
 
 - `defineClientPlugin` + `defineHostPlugin`
-- 一个 session 作用域 Page，带 page action
+- 一个 session 作用域 Page，带声明式 action、动态 badge 与 page-scoped dialog
 - `ctx.config.define` 派生设置页
 - 一条全局 command（`Mod+Shift+H`）
 - 一个 typed capability

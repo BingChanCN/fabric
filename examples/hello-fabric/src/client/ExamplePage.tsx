@@ -1,15 +1,27 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { createAsyncResource } from '@dsh-do/fabric/sdk'
 import {
-  AsyncView, Badge, Dropdown, EmptyState, Modal, Page, PageHeader, Popover, Section,
+  AsyncView, Badge, Dropdown, EmptyState, Page, PageHeader, Popover, Section,
   useAsyncResource, useFabricConfig,
 } from '@dsh-do/fabric/ui'
-import type { FabricPageProps } from '@dsh-do/fabric/client'
+import type { FabricDialogContentProps, FabricPageProps } from '@dsh-do/fabric/client'
 import { statusResource, type ExampleStatus } from '../resources.ts'
 import css from './example.module.css'
 
-export function ExamplePage({ sessionId, resources, config: getConfig, openFabric, notify }: FabricPageProps) {
-  const [modalOpen, setModalOpen] = useState(false)
+function DemoDialog({ dialog }: FabricDialogContentProps) {
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+        This dialog is owned by the page scope and closes automatically when that page unmounts.
+      </p>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button type="button" className={css.button} onClick={dialog.close}>Close Dialog</button>
+      </div>
+    </div>
+  )
+}
+
+export function ExamplePage({ page, sessionId, resources, config: getConfig, openFabric, notify }: FabricPageProps) {
   const config = useFabricConfig<{ enabled: boolean }>(getConfig('dsh-do.hello-fabric.preferences'))
   const resource = useMemo(() => createAsyncResource<ExampleStatus>(async signal => {
     if (sessionId === undefined) throw new Error('select a session before querying status')
@@ -48,10 +60,21 @@ export function ExamplePage({ sessionId, resources, config: getConfig, openFabri
           <button type="button" className={css.linkButton} onClick={() => openFabric()}>Keep Fabric open</button>
         </div>
       </Section>
-      <Section title="UI Primitives & Overlays" description="Interact with built-in Modal, Dropdown and Popover components.">
+      <Section title="Dialogs and anchored controls" description="Open a service-owned dialog or use anchored Dropdown and Popover components.">
         <div className={css.row}>
-          <button type="button" className={css.button} onClick={() => { setModalOpen(true) }}>
-            Open Demo Modal
+          <button
+            type="button"
+            className={css.button}
+            onClick={() => {
+              page.dialogs.open({
+                id: 'demo',
+                title: 'Fabric Dialog Service',
+                description: 'Opened imperatively without local React state.',
+                content: DemoDialog,
+              })
+            }}
+          >
+            Open Demo Dialog
           </button>
           <Dropdown
             trigger={<button type="button" className={css.button}>Dropdown Menu ▾</button>}
@@ -67,21 +90,6 @@ export function ExamplePage({ sessionId, resources, config: getConfig, openFabri
             content={<div style={{ maxWidth: 200, fontSize: 13 }}>This is a floating popover anchored to the trigger button.</div>}
           />
         </div>
-        <Modal
-          open={modalOpen}
-          onClose={() => { setModalOpen(false) }}
-          title="Fabric Interactive Modal"
-          description="A standard modal dialog with ESC closing, focus trap and backdrop mask."
-          footer={
-            <button type="button" className={css.button} onClick={() => { setModalOpen(false) }}>
-              Close Modal
-            </button>
-          }
-        >
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
-            This modal is rendered through a dedicated <code>Portal</code> and follows Fabric elevation standards.
-          </p>
-        </Modal>
       </Section>
       <Section title="Request lifecycle" description="The typed Resource client owns transport and cancellation.">
         <AsyncView
