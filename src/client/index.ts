@@ -98,7 +98,7 @@ export function apply(ctx: ClientContext): void {
       raised: '#ffffff',
       sunken: '#f3f4f6',
       muted: '#eef0f3',
-      overlay: 'rgba(0, 0, 0, 0.45)',
+      overlay: '#ffffff',
     },
     content: {
       primary: '#111827',

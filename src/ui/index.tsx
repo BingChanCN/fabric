@@ -26,8 +26,8 @@ export const tokens = {
     base: 'var(--fabric-surface-base, #ffffff)',
     subtle: 'var(--fabric-surface-muted, #f3f4f6)',
     elevated: 'var(--fabric-surface-raised, #ffffff)',
-    overlay: 'var(--fabric-surface-overlay, rgba(0, 0, 0, 0.5))',
-    mask: 'var(--fabric-surface-overlay, rgba(0, 0, 0, 0.45))',
+    overlay: 'var(--fabric-surface-raised, #ffffff)',
+    mask: 'var(--fabric-overlay-scrim, rgba(0, 0, 0, 0.45))',
   },
   text: {
     primary: 'var(--fabric-content-primary, #111827)',

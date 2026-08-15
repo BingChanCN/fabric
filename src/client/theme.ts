@@ -43,6 +43,7 @@ export class FabricThemeManager implements FabricThemeService {
       '--dsw-alias-bg-layer-1': theme.surface.raised,
       '--dsw-alias-bg-layer-2': theme.surface.muted,
       '--dsw-alias-bg-layer-3': theme.surface.overlay,
+      '--fabric-overlay-scrim': 'var(--dsw-alias-bg-mask-1)',
       '--dsw-alias-bg-subtle': theme.surface.muted,
       '--dsw-alias-bg-elevated': theme.surface.raised,
       '--dsw-alias-label-primary': theme.content.primary,

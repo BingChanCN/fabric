@@ -4,7 +4,8 @@
 
 ## 语义角色
 
-- surface：`base` / `raised` / `sunken` / `muted` / `overlay`
+- surface：`base` / `raised` / `sunken` / `muted` / `overlay`（面板底，不透明）
+- overlay scrim：`--fabric-overlay-scrim`，由 adapter 映射 `--dsw-alias-bg-mask-1`，只给全屏遮罩用
 - content：`primary` / `secondary` / `tertiary` / `disabled` / `inverse`
 - border：`subtle` / `default` / `strong` / `focus`
 - accent：`primary` / `hover` / `active` / `surface`
