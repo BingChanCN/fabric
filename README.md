@@ -2,7 +2,7 @@
 
 > DSH 插件与 DeepSeek Harness 之间的兼容性隔离层。下游业务只依赖 Fabric 公共 API；DSH 破坏性变化由新版 Fabric 吸收。
 
-当前兼容基线：`@deepseek-ai/dsh@0.1.0-rc.6`。本版本 **0.5.0** 是 clean break：每个 Profile 只加载一份 `@dsh-do/fabric` 单例 runtime。
+当前兼容基线：`@deepseek-ai/dsh@0.1.0-rc.6`。本版本 **0.5.1** 是 clean break：每个 Profile 只加载一份 `@dsh-do/fabric` 单例 runtime。
 
 ---
 

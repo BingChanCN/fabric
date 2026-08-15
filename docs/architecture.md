@@ -13,6 +13,8 @@ Fabric 0.5.0 是 DSH 的兼容性隔离层，不是 DSH API 的透传包装。
 
 下游插件 bundle 只保留业务页面、插件 CSS，以及对 `@dsh-do/fabric` 的 `require`。
 
+DSH 的同步 `require` 不能去拉脚本。Fabric 必须声明 `dsh.client.immediately: true`，在任何下游 factory 物化前先登记 `__ModuleLoader__` factory。Fiber `inject` 等不到这一步。
+
 ## 身份
 
 | 名字 | 来源 | 用途 |

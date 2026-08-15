@@ -60,6 +60,9 @@ try {
   if (manifest.name !== '@dsh-do/fabric') fail(`unexpected package name ${JSON.stringify(manifest.name)}`)
   if (manifest.dsh?.bundle?.patch !== './cordis.patch.yml') fail('dsh.bundle.patch must point to ./cordis.patch.yml')
   if (manifest.dsh?.client?.platform !== 'web') fail('dsh.client.platform must be web')
+  if (manifest.dsh?.client?.immediately !== true) {
+    fail('dsh.client.immediately must be true so downstream require("@dsh-do/fabric") can see the factory')
+  }
 
   const requiredFiles = [
     'README.md',
