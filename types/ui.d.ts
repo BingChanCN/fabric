@@ -3,6 +3,7 @@ import type {
   AsyncResource, AsyncResourceSnapshot, ConfigSnapshot, ConfigStore, FabricConfigSchema,
   JsonRecord, Observable,
 } from './sdk.d.ts'
+import type { FabricConfigHandle } from './client.d.ts'
 
 export declare const Z_INDEX: {
   readonly BASE: 0
@@ -152,7 +153,7 @@ export interface DropdownProps {
 }
 export declare function Dropdown(props: DropdownProps): ReactElement
 
-export declare function useFabricConfig<T extends JsonRecord = JsonRecord>(id: string): {
+export declare function useFabricConfig<T extends JsonRecord = JsonRecord>(handle: FabricConfigHandle<T>): {
   values: T
   status: ConfigSnapshot<T>['status']
   dirty: boolean

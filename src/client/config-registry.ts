@@ -3,10 +3,14 @@ import {
 } from '../sdk/config.ts'
 import type {
   FabricConfigRecord, FabricConfigRuntime, FabricConfigRuntimeSnapshot,
-  FabricConfigSchema, FabricModRecord, FabricPageRecord, FabricThemeRecord,
+  ConfigResourceTransport, FabricConfigSchema, FabricModRecord, FabricPageRecord, FabricThemeRecord,
 } from '../sdk/config.ts'
 import type { JsonClient } from '../sdk/http.ts'
 import type { Observable } from '../sdk/observable.ts'
+
+function isConfigResourceTransport(value: JsonClient | ConfigResourceTransport): value is ConfigResourceTransport {
+  return 'read' in value && 'write' in value
+}
 
 export interface FabricConfigDefinition {
   id: string
@@ -49,7 +53,7 @@ export class FabricConfigRegistry implements FabricConfigRuntime, Observable<Fab
   private readonly themeRecords = new Map<string, FabricThemeRecord>()
   private pages: readonly FabricPageRecord[] = Object.freeze([])
 
-  constructor(private readonly client: JsonClient) {
+  constructor(private readonly client: JsonClient | ConfigResourceTransport) {
     installConfigRuntime(this)
   }
 
@@ -87,7 +91,7 @@ export class FabricConfigRegistry implements FabricConfigRuntime, Observable<Fab
     const store = createConfigStore({
       id: definition.id,
       schema: definition.schema,
-      client: this.client,
+      ...(isConfigResourceTransport(this.client) ? { resource: this.client } : { client: this.client }),
       cache: createLocalStorageCache(),
     })
     this.configRecords.set(definition.id, record)

@@ -78,14 +78,14 @@ export class FabricRuntimeService extends Service implements FabricService {
     return this.registerConfigContribution({ kind: 'config', ...definition })
   }
 
-  registerCapability<T>(id: string, impl: T): () => void {
-    const unregister = this.capabilities.register(id, impl)
+  registerCapability<T>(id: string, version: string, scope: 'profile' | 'session', impl: T): () => void {
+    const unregister = this.capabilities.register(id, version, scope, impl)
     this.ctx.effect(() => () => { unregister() }, `fabric: capability ${id}`)
     return unregister
   }
 
-  getCapability<T>(id: string): T | undefined {
-    return this.capabilities.get<T>(id)
+  getCapability<T>(id: string, version?: string, scope: 'profile' | 'session' = 'profile'): T | undefined {
+    return this.capabilities.get<T>(id, version, scope)
   }
 
   open(pageId?: string): void {

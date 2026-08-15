@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { FabricThemeDefinition } from './theme-contract.ts'
 import type {
   HostObservable, PropsRuntime, SlotComponent, SlotLabel,
 } from '@deepseek-ai/dsh-client-ui-slots'
@@ -108,11 +109,13 @@ export interface FabricToolbarContribution extends FabricContributionBase {
 
 export interface FabricOverlayContribution extends FabricContributionBase {
   kind: 'overlay'
+  pluginId?: string
   component: SlotComponent<FabricOverlayProps>
 }
 
 export interface FabricSettingsContribution extends FabricContributionBase {
   kind: 'settings'
+  pluginId?: string
   component: SlotComponent<FabricSettingsProps>
 }
 
@@ -151,7 +154,7 @@ export interface FabricConfigContribution extends FabricContributionBase {
 export interface FabricCommandContribution extends FabricContributionBase {
   kind: 'command'
   title: FabricCommandDefinition['title']
-  handler: () => void
+  handler: (signal: AbortSignal) => void | Promise<void>
   description?: string
   shortcut?: string
   pluginId?: string
@@ -183,8 +186,10 @@ export interface FabricThemeSetOptions {
 
 /** Theme management service exposed on `ctx.fabric.theme`. */
 export interface FabricThemeService {
-  /** Register or set token overrides under a stable id. Returns an unregister disposer. */
+  /** Internal DSH bridge for the Fabric runtime. */
   setTokens(id: string, tokens: Record<string, string>, options?: FabricThemeSetOptions): () => void
+  /** Apply a Fabric semantic theme through the private DSH bridge. */
+  setSemantic(id: string, theme: FabricThemeDefinition, options?: FabricThemeSetOptions): () => void
   /** Clear token overrides registered under an id. */
   clearTokens(id: string): void
   /** Read current active tokens for a given scope. */
@@ -216,9 +221,9 @@ export interface FabricService extends HostObservable<FabricSnapshot> {
   /** Register a persisted config document and auto-render it in settings. */
   registerConfig(definition: Omit<FabricConfigContribution, 'kind'>): () => void
   /** Register a named capability for the calling plugin fiber's lifetime. */
-  registerCapability<T>(id: string, impl: T): () => void
+  registerCapability<T>(id: string, version: string, scope: 'profile' | 'session', impl: T): () => void
   /** Read a previously registered capability, if present. */
-  getCapability<T>(id: string): T | undefined
+  getCapability<T>(id: string, version?: string, scope?: 'profile' | 'session'): T | undefined
 }
 
 declare module '@deepseek-ai/cordis' {

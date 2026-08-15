@@ -29,14 +29,19 @@ try {
   }
 
   const client = await readFile(join(target, 'src/client/index.ts'), 'utf8')
-  if (!client.includes("export const inject = ['fabric'] as const")) {
-    fail('scaffolded client does not wait for the fabric service')
+  if (!client.includes('defineClientPlugin')) fail('scaffolded client does not use defineClientPlugin')
+  if (client.includes('ClientContext') || client.includes('ctx.fabric.register')) {
+    fail('scaffolded client still depends on the deleted 0.4 public API')
+  }
+  const host = await readFile(join(target, 'src/index.ts'), 'utf8')
+  if (!host.includes('defineHostPlugin') || !host.includes('mountHostPlugin')) {
+    fail('scaffolded host does not use defineHostPlugin')
   }
   const manifest = JSON.parse(await readFile(join(target, 'package.json'), 'utf8'))
   if (manifest.name !== 'demo-mod') fail(`unexpected scaffold name ${manifest.name}`)
   if (!manifest.dsh?.client?.inject?.includes('@dsh-do/fabric')) fail('scaffold dsh.client.inject is missing @dsh-do/fabric')
-  if (manifest.peerDependencies?.['@dsh-do/fabric'] !== '^0.4.0') {
-    fail('scaffold peerDependencies does not reference @dsh-do/fabric')
+  if (manifest.peerDependencies?.['@dsh-do/fabric'] !== '^0.5.0') {
+    fail('scaffold peerDependencies does not reference @dsh-do/fabric ^0.5.0')
   }
   const tsdownConfig = await readFile(join(target, 'tsdown.config.ts'), 'utf8')
   if (!tsdownConfig.includes("from '@dsh-do/fabric/build'")) {

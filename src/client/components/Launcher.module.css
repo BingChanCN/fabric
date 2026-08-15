@@ -9,15 +9,15 @@
   overflow: hidden;
   border: 0;
   border-radius: 6px;
-  color: var(--dsw-alias-label-secondary);
+  color: var(--fabric-content-secondary);
   background: transparent;
   cursor: pointer;
   font: inherit;
 }
 
 .button:hover {
-  color: var(--dsw-alias-label-primary);
-  background: var(--dsw-specific-sidebar-nav-item-hover);
+  color: var(--fabric-content-primary);
+  background: var(--fabric-interaction-hover);
 }
 
 .label {

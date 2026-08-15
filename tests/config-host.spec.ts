@@ -4,8 +4,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 import { describe, expect, it } from 'vitest'
-import { handleFabricConfigRequest } from '../src/index.ts'
 import { FabricConfigRepository } from '../src/host/config-store.ts'
+import { FabricResourceHostService, resourceRouteHandler } from '../src/host/resources.ts'
+import { fabricConfigResource } from '../src/resource/config.ts'
+import { FabricResourceError } from '../src/resource/contract.ts'
+
+const schema = {
+  enabled: { type: 'boolean' as const, title: 'Enabled', default: false },
+}
 
 async function withRepo(): Promise<FabricConfigRepository> {
   const root = await mkdtemp(join(tmpdir(), 'fabric-config-'))
@@ -59,9 +65,11 @@ function mockResponse(): { res: ServerResponse; done: Promise<{ status: number; 
       chunks.push(Buffer.from(chunk))
       callback()
     },
-  }) as unknown as ServerResponse
+  }) as unknown as ServerResponse & { headersSent: boolean }
+  res.headersSent = false
   res.writeHead = ((code: number) => {
     status = code
+    res.headersSent = true
     return res
   }) as ServerResponse['writeHead']
   res.end = ((chunk?: unknown) => {
@@ -73,41 +81,39 @@ function mockResponse(): { res: ServerResponse; done: Promise<{ status: number; 
   return { res, done }
 }
 
-describe('handleFabricConfigRequest', () => {
-  it('lists, writes, and reports a conflict over HTTP', async () => {
+describe('Fabric config Resource transport', () => {
+  it('routes typed query and mutation and reports stale sequence conflicts', async () => {
     const repo = await withRepo()
-
+    const host = new FabricResourceHostService()
+    host.provide('fabric', fabricConfigResource, {
+      query: async request => repo.read(request.id),
+      mutate: async request => {
+        if (request.operation !== 'write') throw new Error('expected write request')
+        const result = await repo.write(request.id, request.seq, request.values)
+        if (!result.ok) {
+          throw new FabricResourceError({
+            code: 'config-conflict',
+            message: 'config changed on the host',
+            details: result.conflict,
+            retryable: true,
+          })
+        }
+        return result.document
+      },
+    })
+    const route = resourceRouteHandler(host)
+    const readBody = { operation: 'read', id: 'demo', schema }
     const empty = mockResponse()
-    await handleFabricConfigRequest(mockRequest('GET', '/fabric/config/demo'), empty.res, repo)
-    expect(await empty.done).toMatchObject({ status: 200, body: { id: 'demo', seq: 0, values: {} } })
+    route(mockRequest('POST', '/fabric/resource/fabric/config/query', readBody), empty.res)
+    expect(await empty.done).toMatchObject({ status: 200, body: { data: { id: 'demo', seq: 0, values: {} } } })
 
+    const writeBody = { operation: 'write', id: 'demo', seq: 0, values: { enabled: true }, schema }
     const created = mockResponse()
-    await handleFabricConfigRequest(
-      mockRequest('PUT', '/fabric/config/demo', { seq: 0, values: { enabled: true } }),
-      created.res,
-      repo,
-    )
-    expect(await created.done).toMatchObject({
-      status: 200,
-      body: { id: 'demo', seq: 1, values: { enabled: true } },
-    })
+    route(mockRequest('POST', '/fabric/resource/fabric/config/mutate', writeBody), created.res)
+    expect(await created.done).toMatchObject({ status: 200, body: { data: { id: 'demo', seq: 1, values: { enabled: true } } } })
 
-    const conflict = mockResponse()
-    await handleFabricConfigRequest(
-      mockRequest('PUT', '/fabric/config/demo', { seq: 0, values: { enabled: false } }),
-      conflict.res,
-      repo,
-    )
-    expect(await conflict.done).toMatchObject({
-      status: 409,
-      body: { id: 'demo', seq: 1, values: { enabled: true } },
-    })
-
-    const listed = mockResponse()
-    await handleFabricConfigRequest(mockRequest('GET', '/fabric/config'), listed.res, repo)
-    expect(await listed.done).toMatchObject({
-      status: 200,
-      body: { configs: [{ id: 'demo', seq: 1 }] },
-    })
+    const stale = mockResponse()
+    route(mockRequest('POST', '/fabric/resource/fabric/config/mutate', { ...writeBody, values: { enabled: false } }), stale.res)
+    expect((await stale.done).status).toBe(409)
   })
 })

@@ -1,35 +1,17 @@
 # hello-fabric
 
-这是 Fabric 的最小完整下游插件，包含：
+Fabric 0.5 的最小下游插件：
 
-- 一个 `fabric.page` 页面（支持 `icon`、`badge`、`keepAlive` 保活）；
-- 一个工作台工具栏动作；
-- 一个 Plugins 设置贡献；
-- 一个 `kind: 'theme'` 主题 Token 覆盖（高特异性穿透）；
-- 一个 `kind: 'mod'` ModMenu 身份卡与 `fabric:mods` 页面集成；
-- 一个 `registerConfig` 声明式持久化配置文档与防竞态同步；
-- 一个 `kind: 'command'` 命令面板条目（快捷键 `Mod+Shift+H`）；
-- 一个 `registerCapability` 跨插件能力注册（`hello-status`）；
-- 包含 `Modal`、`Dropdown`、`Popover` 交互组件与 Design Tokens；
-- 两个 DSH host 同源 JSON 路由；
-- `createJsonClient`、`AsyncResource` 和 Fabric UI 组件；
-- 由 `fabricPlugin()` 生成的 Node 与浏览器预构建产物。
-
-在仓库根目录构建：
+- `defineClientPlugin` + `defineHostPlugin`
+- 一个 session 作用域 Page，带 page action
+- `ctx.config.define` 派生设置页
+- 一条全局 command（`Mod+Shift+H`）
+- 一个 typed capability
+- 局部语义主题覆盖
+- Host/Client 走 typed Resource，不再挂 `/fabric-example/*`
 
 ```sh
+pnpm --dir ../.. build
 pnpm build
-pnpm build:example
+dsh plugin --profile web add "$(pwd)"
 ```
-
-打包并安装到已经包含 Fabric 的 profile：
-
-```sh
-pnpm --dir examples/hello-fabric pack --pack-destination ../../.pack-probe
-dsh plugin --profile web add "D:/dsh-dev/fabric/.pack-probe/hello-fabric-0.4.0.tgz"
-dsh --profile web
-```
-
-本地安装使用 tarball；tarball 直接传路径（不加 `link:`/`file:` 前缀，`link:` 仅用于目录 checkout）。Windows 跨盘 `link:` 会受 pnpm 10.18.3 的坏链接问题影响。
-
-打开侧栏中的 Fabric，选择 **Hello Fabric**。页面请求 `/fabric-example/status`，设置项写入 `/fabric-example/settings`；两条路由只保存当前进程内的示例状态。

@@ -13,6 +13,20 @@ class StubService {
 }
 
 const externals = {
+  '@dsh-do/fabric': {
+    defineClientPlugin: definition => definition,
+    mountClientPlugin: () => ({ inject: ['fabric'], apply() {} }),
+    defineCodec: parse => ({ parse }),
+    defineResource: definition => definition,
+    jsonCodec: { parse: value => value },
+    voidCodec: { parse: () => undefined },
+    useAsyncResource: () => ({ status: 'idle' }),
+    Page() { return null },
+    PageHeader() { return null },
+    Section() { return null },
+    Badge() { return null },
+    Button() { return null },
+  },
   '@deepseek-ai/cordis': { Service: StubService },
   '@deepseek-ai/dsh-client-ui-primitives': {},
   '@deepseek-ai/dsh-client-ui-slots': {
@@ -48,9 +62,8 @@ const checks = [
     id: 'hello-fabric',
     inject: ['fabric'],
     requires: [
-      '@deepseek-ai/dsh-client-ui-primitives',
+      '@dsh-do/fabric',
       'react',
-      'react-dom',
       'react/jsx-runtime',
     ],
   },
@@ -103,6 +116,13 @@ for (const check of checks) {
   const expectedRequires = [...check.requires].sort()
   if (JSON.stringify(actualRequires) !== JSON.stringify(expectedRequires)) {
     fail(check.file, `requires ${JSON.stringify(actualRequires)} instead of ${JSON.stringify(expectedRequires)}`)
+  }
+
+  if (check.id !== '@dsh-do/fabric' && !source.includes('require("@dsh-do/fabric")') && !source.includes("require('@dsh-do/fabric')")) {
+    fail(check.file, 'downstream bundle does not consume the Fabric singleton')
+  }
+  if (source.includes('require("@dsh-do/fabric/ui")') || source.includes('require("@dsh-do/fabric/client")')) {
+    fail(check.file, 'bundle still requires a Fabric subpath instead of the singleton ABI')
   }
 
   console.log(`client bundle check passed: ${check.id} (inject=${JSON.stringify(actualInject)})`)

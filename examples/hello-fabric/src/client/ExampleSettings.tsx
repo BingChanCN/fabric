@@ -1,14 +1,13 @@
 import { useState } from 'react'
-import { createJsonClient } from '@dsh-do/fabric/sdk'
+import { settingsResource } from '../resources.ts'
 import type { FabricSettingsProps } from '@dsh-do/fabric/client'
 import css from './example.module.css'
 
-export function ExampleSettings({ notify }: FabricSettingsProps) {
+export function ExampleSettings({ resources, notify }: FabricSettingsProps) {
   const [saved, setSaved] = useState(false)
 
   const save = async (): Promise<void> => {
-    const client = createJsonClient({ sessionId: () => undefined })
-    await client.post('/fabric-example/settings', { enabled: true }, { session: false })
+    await resources.mutate(settingsResource, { enabled: true })
     setSaved(true)
     notify('Example setting saved', { tone: 'success' })
   }
@@ -17,7 +16,7 @@ export function ExampleSettings({ notify }: FabricSettingsProps) {
     <section className={css.settings}>
       <div>
         <strong>Example plugin</strong>
-        <p>Settings contributions render inside Fabric's Plugins tab.</p>
+        <p>Config-attached settings render inside Fabric's Plugins tab.</p>
       </div>
       <button type="button" className={css.button} onClick={() => { void save() }}>
         {saved ? 'Saved' : 'Save setting'}

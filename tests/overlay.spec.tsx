@@ -18,8 +18,8 @@ describe('Fabric Overlay Primitives', () => {
     expect(Z_INDEX.MODAL).toBe(1000)
     expect(Z_INDEX.POPOVER).toBe(200)
     expect(Z_INDEX.DROPDOWN).toBe(100)
-    expect(tokens.bg.base).toContain('var(--dsw-alias-bg-base')
-    expect(tokens.brand.primary).toContain('var(--dsw-alias-brand-primary')
+    expect(tokens.bg.base).toContain('var(--fabric-surface-base')
+    expect(tokens.brand.primary).toContain('var(--fabric-accent-primary')
   })
 
   it('renders children into document.body via Portal', () => {

@@ -55,6 +55,63 @@ export type FabricConfigField =
 
 export type FabricConfigSchema = Record<string, FabricConfigField>
 
+const CONFIG_FIELD_ID = /^[A-Za-z][A-Za-z0-9._-]{0,63}$/u
+
+export function parseConfigSchema(value: unknown): FabricConfigSchema {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new Error('config schema must be an object')
+  const schema: FabricConfigSchema = {}
+  for (const [key, rawField] of Object.entries(value)) {
+    if (!CONFIG_FIELD_ID.test(key) || rawField === null || typeof rawField !== 'object' || Array.isArray(rawField)) {
+      throw new Error(`invalid config field "${key}"`)
+    }
+    const field = rawField as Record<string, unknown>
+    if (typeof field.title !== 'string' || field.title.trim() === '') throw new Error(`config field "${key}" needs a title`)
+    if (field.type === 'boolean') {
+      if (field.default !== undefined && typeof field.default !== 'boolean') throw new Error(`config field "${key}" has an invalid default`)
+      schema[key] = { type: 'boolean', title: field.title, ...(typeof field.description === 'string' ? { description: field.description } : {}), ...(field.default === undefined ? {} : { default: field.default }) }
+    } else if (field.type === 'string' || field.type === 'textarea') {
+      if (field.default !== undefined && typeof field.default !== 'string') throw new Error(`config field "${key}" has an invalid default`)
+      schema[key] = { type: field.type, title: field.title, ...(typeof field.description === 'string' ? { description: field.description } : {}), ...(typeof field.placeholder === 'string' ? { placeholder: field.placeholder } : {}), ...(field.default === undefined ? {} : { default: field.default }) }
+    } else if (field.type === 'number') {
+      if (field.default !== undefined && (typeof field.default !== 'number' || !Number.isFinite(field.default))) throw new Error(`config field "${key}" has an invalid default`)
+      if (field.min !== undefined && (typeof field.min !== 'number' || !Number.isFinite(field.min))) throw new Error(`config field "${key}" has an invalid minimum`)
+      if (field.max !== undefined && (typeof field.max !== 'number' || !Number.isFinite(field.max))) throw new Error(`config field "${key}" has an invalid maximum`)
+      if (field.step !== undefined && (typeof field.step !== 'number' || !Number.isFinite(field.step) || field.step <= 0)) throw new Error(`config field "${key}" has an invalid step`)
+      schema[key] = { type: 'number', title: field.title, ...(typeof field.description === 'string' ? { description: field.description } : {}), ...(typeof field.min === 'number' ? { min: field.min } : {}), ...(typeof field.max === 'number' ? { max: field.max } : {}), ...(typeof field.step === 'number' ? { step: field.step } : {}), ...(field.default === undefined ? {} : { default: field.default }) }
+    } else if (field.type === 'select') {
+      if (!Array.isArray(field.options) || field.options.length === 0) throw new Error(`config field "${key}" needs options`)
+      const options = field.options.map((rawOption, index) => {
+        if (rawOption === null || typeof rawOption !== 'object' || Array.isArray(rawOption)) throw new Error(`config field "${key}" option ${index} is invalid`)
+        const option = rawOption as Record<string, unknown>
+        if (typeof option.label !== 'string' || typeof option.value !== 'string') throw new Error(`config field "${key}" option ${index} is invalid`)
+        return { label: option.label, value: option.value }
+      })
+      if (field.default !== undefined && (typeof field.default !== 'string' || !options.some(option => option.value === field.default))) throw new Error(`config field "${key}" has an invalid default`)
+      schema[key] = { type: 'select', title: field.title, options, ...(typeof field.description === 'string' ? { description: field.description } : {}), ...(field.default === undefined ? {} : { default: field.default }) }
+    } else {
+      throw new Error(`config field "${key}" has an invalid type`)
+    }
+  }
+  return schema
+}
+
+export function validateConfigValues(schema: FabricConfigSchema, values: unknown): JsonRecord {
+  if (values === null || typeof values !== 'object' || Array.isArray(values)) throw new Error('config values must be an object')
+  const input = values as Record<string, unknown>
+  const output = defaultsFromSchema(schema) as Record<string, JsonValue>
+  for (const key of Object.keys(input)) {
+    const field = schema[key]
+    if (field === undefined) throw new Error(`unknown config field "${key}"`)
+    const value = input[key]
+    if (field.type === 'boolean' && typeof value !== 'boolean') throw new Error(`config field "${key}" must be boolean`)
+    if ((field.type === 'string' || field.type === 'textarea') && typeof value !== 'string') throw new Error(`config field "${key}" must be string`)
+    if (field.type === 'number' && (typeof value !== 'number' || !Number.isFinite(value) || (field.min !== undefined && value < field.min) || (field.max !== undefined && value > field.max))) throw new Error(`config field "${key}" is outside its allowed range`)
+    if (field.type === 'select' && (typeof value !== 'string' || !field.options.some(option => option.value === value))) throw new Error(`config field "${key}" has an invalid option`)
+    output[key] = value as JsonValue
+  }
+  return output
+}
+
 export type ConfigStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error'
 
 export interface ConfigSnapshot<T extends JsonRecord = JsonRecord> {
@@ -78,11 +135,17 @@ export interface ConfigCache {
   clear(id: string): void
 }
 
+export interface ConfigResourceTransport {
+  read(id: string, schema: FabricConfigSchema): Promise<ConfigDocument>
+  write(id: string, seq: number, values: JsonRecord, schema: FabricConfigSchema): Promise<ConfigDocument>
+}
+
 export interface ConfigStoreOptions<T extends JsonRecord> {
   id: string
   schema: FabricConfigSchema
   defaults?: T
   client?: Pick<JsonClient, 'get' | 'put'>
+  resource?: ConfigResourceTransport
   cache?: ConfigCache
   debounceMs?: number
   endpoint?: string
@@ -173,6 +236,7 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
   readonly schema: FabricConfigSchema
   private readonly defaults: T
   private readonly client: Pick<JsonClient, 'get' | 'put'> | undefined
+  private readonly resource: ConfigResourceTransport | undefined
   private readonly cache: ConfigCache | undefined
   private readonly debounceMs: number
   private readonly endpoint: string
@@ -194,6 +258,8 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
       ...(options.defaults ?? {}),
     } as T
     this.client = options.client
+    this.resource = options.resource
+    if (this.client !== undefined && this.resource !== undefined) throw new Error(`fabric config "${this.id}" cannot use two transports`)
     this.cache = options.cache
     this.debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS
     this.endpoint = options.endpoint ?? '/fabric/config'
@@ -242,7 +308,7 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
   }
 
   async load(): Promise<ConfigSnapshot<T>> {
-    if (this.client === undefined) {
+    if (this.client === undefined && this.resource === undefined) {
       this.setSnapshot({ status: 'ready' })
       return this.snapshot
     }
@@ -252,9 +318,10 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
       error: undefined,
     })
     try {
-      const payload = await this.client.get<unknown>(`${this.endpoint}/${this.id}`, { session: false })
+      const document = this.resource !== undefined
+        ? await this.resource.read(this.id, this.schema)
+        : parseDocument(this.id, await this.client!.get<unknown>(`${this.endpoint}/${this.id}`, { session: false })) ?? { id: this.id, seq: 0, values: {} }
       if (generation !== this.generation) return this.snapshot
-      const document = parseDocument(this.id, payload) ?? { id: this.id, seq: 0, values: {} }
       this.applyRemote(document)
       this.setSnapshot({ status: 'ready', error: undefined })
     } catch (error) {
@@ -297,7 +364,7 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
   }
 
   private schedulePersist(): void {
-    if (this.client === undefined || this.dirtyKeys.size === 0) return
+    if ((this.client === undefined && this.resource === undefined) || this.dirtyKeys.size === 0) return
     if (this.persistTimer !== undefined) clearTimeout(this.persistTimer)
     this.persistTimer = setTimeout(() => {
       this.persistTimer = undefined
@@ -306,7 +373,7 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
   }
 
   private async flush(): Promise<void> {
-    if (this.client === undefined || this.dirtyKeys.size === 0) return
+    if ((this.client === undefined && this.resource === undefined) || this.dirtyKeys.size === 0) return
     if (this.persistInFlight) {
       this.persistQueued = true
       return
@@ -324,11 +391,12 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
         const sentDirty = new Set(this.dirtyKeys)
         const sentSeq = this.snapshot.seq
         try {
-          const payload = await this.client.put<unknown>(`${this.endpoint}/${this.id}`, {
-            seq: sentSeq,
-            values: sentValues,
-          }, { session: false })
-          const document = parseDocument(this.id, payload)
+          const document = this.resource !== undefined
+            ? await this.resource.write(this.id, sentSeq, sentValues, this.schema)
+            : parseDocument(this.id, await this.client!.put<unknown>(`${this.endpoint}/${this.id}`, {
+              seq: sentSeq,
+              values: sentValues,
+            }, { session: false }))
           if (document === undefined) throw new Error(`invalid config document from ${this.id}`)
           for (const key of sentDirty) {
             if (sameValue(this.snapshot.values[key] as JsonValue, sentValues[key] as JsonValue)) {
@@ -371,11 +439,10 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
 }
 
 function readConflict(error: unknown, id: string): ConfigDocument | undefined {
-  if (error === null || typeof error !== 'object' || !('status' in error) || (error as { status?: unknown }).status !== 409) {
-    return undefined
-  }
-  const details = 'details' in error ? (error as { details?: unknown }).details : undefined
-  return parseDocument(id, details)
+  if (error === null || typeof error !== 'object') return undefined
+  const value = error as { status?: unknown; code?: unknown; details?: unknown }
+  if (value.status !== 409 && value.code !== 'config-conflict') return undefined
+  return parseDocument(id, value.details)
 }
 
 export function createConfigStore<T extends JsonRecord>(options: ConfigStoreOptions<T>): ConfigStore<T> {

@@ -1,90 +1,75 @@
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type {} from '@dsh-do/fabric/client'
+import { defineClientPlugin, type FabricClientPluginContext, type FabricConfigDefinition, type FabricPageDefinition } from '@dsh-do/fabric/client'
 import { ExamplePage } from './ExamplePage.tsx'
 import { ExampleSettings } from './ExampleSettings.tsx'
 import { RefreshAction } from './RefreshAction.tsx'
 
-/** Required service: Fabric must be mounted before this client fiber starts. */
-export const inject = ['fabric'] as const
-
-/** Minimal downstream plugin: page, toolbar, settings, theme, mod card, and config schema. */
-export function apply(ctx: ClientContext): void {
-  ctx.fabric.register({
-    kind: 'mod',
-    id: 'hello-fabric',
-    name: 'Hello Fabric',
-    version: '0.4.0',
-    description: 'Example downstream plugin for the Fabric workbench.',
-    icon: '✨',
-  })
-
-  ctx.fabric.register({
-    kind: 'page',
-    id: 'hello',
-    order: 0,
-    label: 'Hello Fabric',
-    icon: '✨',
-    badge: 'v0.4',
-    keepAlive: true,
-    pluginId: 'hello-fabric',
-    component: ExamplePage,
-  })
-
-  ctx.fabric.register({
-    kind: 'toolbar',
-    id: 'hello-refresh',
-    order: 0,
-    component: RefreshAction,
-  })
-
-  ctx.fabric.register({
-    kind: 'settings',
-    id: 'hello-fabric',
-    order: 0,
-    component: ExampleSettings,
-  })
-
-  ctx.fabric.register({
-    kind: 'theme',
-    id: 'hello-fabric-theme',
-    pluginId: 'hello-fabric',
-    priority: 1,
-    scope: 'workbench',
-    tokens: {
-      '--dsw-alias-brand-primary': '#2563eb',
+const configDefinition: FabricConfigDefinition<{ enabled: boolean }> = {
+  id: 'preferences',
+  title: 'Hello Fabric 偏好设置',
+  description: '示例插件的持久化配置。',
+  schema: {
+    enabled: {
+      type: 'boolean',
+      title: 'Enable example extras',
+      description: '由 Fabric Host config store 持久化。',
+      default: false,
     },
-  })
-
-  ctx.fabric.registerConfig({
-    id: 'hello-fabric',
-    title: 'Hello Fabric',
-    description: 'Persisted through Fabric\'s host config store.',
-    pluginId: 'hello-fabric',
-    schema: {
-      enabled: {
-        type: 'boolean',
-        title: 'Enable example extras',
-        description: 'Stored under /fabric/config/hello-fabric and kept race-safe.',
-        default: false,
-      },
-    },
-  })
-
-  ctx.fabric.registerCapability('hello-status', {
-    ping: () => 'ok',
-  })
-
-  ctx.fabric.register({
-    kind: 'command',
-    id: 'hello.notify',
-    title: 'Hello Fabric: Notify',
-    shortcut: 'Mod+Shift+H',
-    pluginId: 'hello-fabric',
-    handler: () => {
-      const status = ctx.fabric.getCapability<{ ping: () => string }>('hello-status')
-      ctx.fabric.notify(status?.ping() === 'ok' ? 'Hello from a command' : 'capability missing', {
-        tone: 'success',
-      })
-    },
-  })
+  },
+  settings: ExampleSettings,
 }
+
+const definition = defineClientPlugin({
+  descriptor: {
+    name: 'Hello Fabric',
+    description: 'Example downstream plugin using Fabric public contracts.',
+    icon: 'HF',
+  },
+  setup(ctx: FabricClientPluginContext) {
+    const preferences = ctx.config.define(configDefinition)
+    ctx.capabilities.provide({
+      id: 'status',
+      version: '1',
+      implementation: { ping: () => 'ok' },
+    })
+    ctx.theme.provide('accent', {
+      surface: {
+        base: '#111827', raised: '#1f2937', sunken: '#0f172a', muted: '#1e293b', overlay: 'rgba(0, 0, 0, 0.5)',
+      },
+      content: {
+        primary: '#f8fafc', secondary: '#cbd5e1', tertiary: '#94a3b8', disabled: '#64748b', inverse: '#0f172a',
+      },
+      border: { subtle: '#334155', default: '#475569', strong: '#64748b', focus: '#38bdf8' },
+      accent: { primary: '#38bdf8', hover: '#7dd3fc', active: '#0ea5e9', surface: 'rgba(56, 189, 248, 0.16)' },
+      state: {
+        info: { foreground: '#38bdf8', surface: 'rgba(56, 189, 248, 0.16)', border: 'rgba(56, 189, 248, 0.32)' },
+        success: { foreground: '#4ade80', surface: 'rgba(74, 222, 128, 0.16)', border: 'rgba(74, 222, 128, 0.32)' },
+        warning: { foreground: '#fbbf24', surface: 'rgba(251, 191, 36, 0.16)', border: 'rgba(251, 191, 36, 0.32)' },
+        danger: { foreground: '#fb7185', surface: 'rgba(251, 113, 133, 0.16)', border: 'rgba(251, 113, 133, 0.32)' },
+      },
+      interaction: { hover: 'rgba(255, 255, 255, 0.06)', active: 'rgba(56, 189, 248, 0.18)', selected: 'rgba(56, 189, 248, 0.14)', focus: '#38bdf8' },
+      material: { acrylicBackground: 'rgba(15, 23, 42, 0.82)', acrylicFilter: 'blur(16px)', edgeHighlight: 'rgba(255, 255, 255, 0.14)', shadow: '0 12px 32px rgba(0, 0, 0, 0.28)' },
+    }, { priority: -10 })
+
+    const page: FabricPageDefinition = {
+      id: 'home', order: 0, label: 'Hello Fabric', icon: 'HF', badge: '0.5', keepAlive: true,
+      scope: 'session',
+      config: [preferences],
+      view: ExamplePage,
+      actions: [{ id: 'refresh', order: 0, component: RefreshAction }],
+    }
+    ctx.pages.define(page)
+    ctx.commands.define({
+      id: 'notify',
+      title: 'Hello Fabric: Notify',
+      description: '通过 Fabric command 触发通知。',
+      shortcut: 'Mod+Shift+H',
+      run: () => {
+        const status = ctx.capabilities.require<{ ping: () => string }>('status', '1')
+        ctx.notify(status.ping() === 'ok' ? 'Hello from a command' : 'capability unavailable', { tone: 'success' })
+      },
+    })
+  },
+})
+
+export default definition
+export { definition }

@@ -2,9 +2,6 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { AsyncResource, AsyncResourceSnapshot, Observable } from '../sdk/index.ts'
-import {
-  getConfigRuntime,
-} from '../sdk/config.ts'
 import type {
   ConfigSnapshot, ConfigStore, FabricConfigField, FabricConfigSchema, JsonRecord,
 } from '../sdk/config.ts'
@@ -23,39 +20,39 @@ export const Z_INDEX = {
   TOAST: 2000,
 } as const
 
-/** Canonical design tokens referencing DSH host CSS variables with fallbacks. */
+/** Stable semantic tokens; the DSH bridge is private to the Fabric runtime. */
 export const tokens = {
   bg: {
-    base: 'var(--dsw-alias-bg-base, #ffffff)',
-    subtle: 'var(--dsw-alias-bg-subtle, var(--dsw-alias-bg-layer-2, #f9fafb))',
-    elevated: 'var(--dsw-alias-bg-elevated, var(--dsw-alias-bg-layer-1, #ffffff))',
-    overlay: 'var(--dsw-alias-bg-overlay, rgba(0, 0, 0, 0.5))',
-    mask: 'var(--dsw-alias-bg-mask-1, rgba(0, 0, 0, 0.45))',
+    base: 'var(--fabric-surface-base, #ffffff)',
+    subtle: 'var(--fabric-surface-muted, #f3f4f6)',
+    elevated: 'var(--fabric-surface-raised, #ffffff)',
+    overlay: 'var(--fabric-surface-overlay, rgba(0, 0, 0, 0.5))',
+    mask: 'var(--fabric-surface-overlay, rgba(0, 0, 0, 0.45))',
   },
   text: {
-    primary: 'var(--dsw-alias-label-primary, #111827)',
-    secondary: 'var(--dsw-alias-label-secondary, #4b5563)',
-    tertiary: 'var(--dsw-alias-label-tertiary, #9ca3af)',
-    inverse: 'var(--dsw-alias-label-inverse, #ffffff)',
+    primary: 'var(--fabric-content-primary, #111827)',
+    secondary: 'var(--fabric-content-secondary, #4b5563)',
+    tertiary: 'var(--fabric-content-tertiary, #6b7280)',
+    inverse: 'var(--fabric-content-inverse, #ffffff)',
   },
   border: {
-    l1: 'var(--dsw-alias-border-l1, rgba(0, 0, 0, 0.05))',
-    l2: 'var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.1))',
-    l3: 'var(--dsw-alias-border-l3, #d1d5db)',
+    l1: 'var(--fabric-border-subtle, rgba(0, 0, 0, 0.08))',
+    l2: 'var(--fabric-border-default, rgba(0, 0, 0, 0.14))',
+    l3: 'var(--fabric-border-strong, rgba(0, 0, 0, 0.24))',
   },
   brand: {
-    primary: 'var(--dsw-alias-brand-primary, #2563eb)',
-    hover: 'var(--dsw-alias-brand-hover, #1d4ed8)',
+    primary: 'var(--fabric-accent-primary, #2563eb)',
+    hover: 'var(--fabric-accent-hover, #1d4ed8)',
   },
   state: {
-    error: 'var(--dsw-alias-state-error-primary, #dc2626)',
-    warning: 'var(--dsw-alias-state-warning-primary, #d97706)',
-    success: 'var(--dsw-alias-state-success-primary, #16a34a)',
-    info: 'var(--dsw-alias-state-info-primary, #2563eb)',
+    error: 'var(--fabric-state-danger-foreground, #991b1b)',
+    warning: 'var(--fabric-state-warning-foreground, #92400e)',
+    success: 'var(--fabric-state-success-foreground, #166534)',
+    info: 'var(--fabric-state-info-foreground, #1d4ed8)',
   },
   font: {
-    family: 'var(--dsw-font-family, system-ui, -apple-system, sans-serif)',
-    mono: 'var(--dsw-font-mono, ui-monospace, SFMono-Regular, monospace)',
+    family: 'var(--fabric-font-family, system-ui, -apple-system, sans-serif)',
+    mono: 'var(--fabric-font-mono, ui-monospace, SFMono-Regular, monospace)',
   },
 } as const
 
@@ -432,7 +429,15 @@ export interface DropdownProps {
   className?: string
 }
 
-export function useFabricConfig<T extends JsonRecord = JsonRecord>(id: string): {
+export function useFabricConfig<T extends JsonRecord = JsonRecord>(handle: {
+  readonly id: string
+  getSnapshot(): ConfigSnapshot<T>
+  subscribe(listener: () => void): () => void
+  set(patch: Partial<T>): void
+  reset(): void
+  load(): Promise<ConfigSnapshot<T>>
+  persist(): Promise<ConfigSnapshot<T>>
+}): {
   values: T
   status: ConfigSnapshot<T>['status']
   dirty: boolean
@@ -443,18 +448,17 @@ export function useFabricConfig<T extends JsonRecord = JsonRecord>(id: string): 
   reload: () => Promise<ConfigSnapshot<T>>
   persist: () => Promise<ConfigSnapshot<T>>
 } {
-  const store = getConfigRuntime().requireStore(id) as ConfigStore<T>
-  const snapshot = useObservable(store)
+  const snapshot = useObservable(handle)
   return {
     values: snapshot.values,
     status: snapshot.status,
     dirty: snapshot.dirty,
     error: snapshot.error,
     seq: snapshot.seq,
-    set: patch => { store.set(patch) },
-    reset: () => { store.reset() },
-    reload: () => store.load(),
-    persist: () => store.persist(),
+    set: patch => { handle.set(patch) },
+    reset: () => { handle.reset() },
+    reload: () => handle.load(),
+    persist: () => handle.persist(),
   }
 }
 

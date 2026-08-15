@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, dirname, resolve } from 'node:path'
 import type { UserConfig } from 'tsdown/config'
@@ -5,6 +6,7 @@ import { transform } from 'lightningcss'
 
 /** Module-table entries supplied by the DSH web shell. */
 export const FABRIC_CLIENT_EXTERNALS = [
+  '@dsh-do/fabric',
   'react',
   'react/jsx-runtime',
   'react-dom',
@@ -19,10 +21,12 @@ export const FABRIC_CLIENT_EXTERNALS = [
 ] as const
 
 export interface FabricClientBuildOptions {
-  /** Package name used by the DSH module table and style ownership. */
-  id: string
-  /** Browser entry. @default "src/client/index.ts" */
+  /** Package name used by the DSH module table and style ownership. Defaults to package.json name. */
+  id?: string
+  /** Browser definition entry. Generated bootstrap imports its default export. */
   entry?: string
+  /** Build the Fabric runtime itself instead of a generated downstream bootstrap. */
+  runtime?: boolean
   /** Artifact directory. @default "lib" */
   outDir?: string
   /** Additional DSH module-table entries that must remain external. */
@@ -47,10 +51,22 @@ function unique(values: readonly string[]): string[] {
   return [...new Set(values)]
 }
 
-function requirePluginId(id: string): string {
-  const normalized = id.trim()
+function packageMetadata(): { name: string; version: string } {
+  const raw = readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')
+  const parsed = JSON.parse(raw) as { name?: unknown; version?: unknown }
+  if (typeof parsed.name !== 'string' || parsed.name.trim() === '') throw new Error('fabric build: package.json name is required')
+  if (typeof parsed.version !== 'string' || parsed.version.trim() === '') throw new Error('fabric build: package.json version is required')
+  return { name: parsed.name, version: parsed.version }
+}
+
+function requirePluginId(id: string | undefined): string {
+  const packageName = packageMetadata().name
+  const normalized = (id ?? packageName).trim()
   if (normalized === '') throw new Error('fabric build: plugin id must not be empty')
-  return normalized
+  if (normalized !== packageName) {
+    throw new Error(`fabric build: plugin id "${normalized}" must equal package.json name "${packageName}"`)
+  }
+  return packageName
 }
 
 function cssModules(pluginId: string) {
@@ -98,12 +114,34 @@ function cssModules(pluginId: string) {
  * Build one DSH browser plugin bundle. Fabric SDK/UI value imports are inlined;
  * the framework service itself is consumed through `ctx.fabric`.
  */
-export function fabricClient(options: FabricClientBuildOptions): UserConfig {
+export function fabricClient(options: FabricClientBuildOptions = {}): UserConfig {
+  const metadata = packageMetadata()
   const id = requirePluginId(options.id)
+  const version = metadata.version
   const external = unique([...FABRIC_CLIENT_EXTERNALS, ...(options.external ?? [])])
+  const sourceEntry = resolve(process.cwd(), options.entry ?? 'src/client/index.ts')
+  const bootstrapId = `\0fabric-bootstrap:${id}`
+  const bootstrap = {
+    name: 'fabric-generated-client-bootstrap',
+    resolveId(source: string) {
+      return source === bootstrapId ? bootstrapId : null
+    },
+    load(source: string) {
+      if (source !== bootstrapId) return null
+      if (options.runtime === true) return null
+      return [
+        `import definition from ${JSON.stringify(sourceEntry)};`,
+        `import { mountClientPlugin } from '@dsh-do/fabric';`,
+        `const mounted = mountClientPlugin(${JSON.stringify(id)}, ${JSON.stringify(version)}, definition);`,
+        'export const inject = mounted.inject;',
+        'export const apply = mounted.apply;',
+      ].join('\n')
+    },
+  }
+  const entry = options.runtime === true ? (options.entry ?? 'src/client/index.ts') : bootstrapId
   return {
     name: `${id}/client`,
-    entry: { client: options.entry ?? 'src/client/index.ts' },
+    entry: { client: entry },
     outDir: options.outDir ?? 'lib',
     format: 'cjs',
     platform: 'browser',
@@ -120,13 +158,11 @@ export function fabricClient(options: FabricClientBuildOptions): UserConfig {
       'import.meta.env.MODE': JSON.stringify(process.env.NODE_ENV ?? 'production'),
       'import.meta.env': JSON.stringify({ MODE: process.env.NODE_ENV ?? 'production' }),
     },
-    plugins: [{
+    plugins: [bootstrap, {
       name: 'fabric-runtime-import-boundary',
       resolveId(source: string) {
-        if (source === '@dsh-do/fabric' || source === '@dsh-do/fabric/client') {
-          throw new Error(
-            `fabric build: runtime import "${source}" would duplicate the framework; use ctx.fabric and type-only imports instead`,
-          )
+        if (source.startsWith('@dsh-do/fabric/')) {
+          return { id: '@dsh-do/fabric', external: true }
         }
         return null
       },
@@ -141,7 +177,7 @@ export function fabricClient(options: FabricClientBuildOptions): UserConfig {
 }
 
 /** Build the conventional Node and browser halves of a Fabric-aware DSH plugin. */
-export function fabricPlugin(options: FabricPluginBuildOptions): UserConfig[] {
+export function fabricPlugin(options: FabricPluginBuildOptions = {}): UserConfig[] {
   const id = requirePluginId(options.id)
   const client = fabricClient({
     id,
@@ -161,7 +197,7 @@ export function fabricPlugin(options: FabricPluginBuildOptions): UserConfig[] {
     dts: false,
     sourcemap: options.sourcemap ?? true,
     clean: false,
-    deps: { neverBundle: [/^@deepseek-ai\//] },
+    deps: { neverBundle: [/^@deepseek-ai\//, '@dsh-do/fabric'] },
     outputOptions: { entryFileNames: '[name].js' },
   }, client]
 }

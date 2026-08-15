@@ -1,13 +1,13 @@
 # Fabric UI 组件与设计系统
 
-Fabric 提供了轻量、无重依赖且深度契合 DSH 原生外观的 UI 组件库（`fabric/ui`）。所有组件在编译时内联 CSS Modules，并消费 DSH 语义化 Design Tokens。
+Fabric 提供了轻量、无重依赖的 UI 组件库（`@dsh-do/fabric/ui`）。基础样式由单例 runtime 加载一次，组件只消费 `--fabric-*` 语义变量。
 
 ---
 
 ## 1. 语义 Design Tokens 与层级规范
 
 ### 1.1 语义 Token 映射（`tokens`）
-通过 `import { tokens } from '@dsh-do/fabric/ui'` 引用，自动对接 DSH 变量与安全回退值：
+通过 `import { tokens } from '@dsh-do/fabric/ui'` 引用语义角色。`--dsw-*` 不出现在公共组件层：
 
 ```ts
 import { tokens } from '@dsh-do/fabric/ui'
@@ -20,24 +20,21 @@ const customStyle = {
 }
 ```
 
-| Token 路径 | CSS 变量 | 默认回退值 | 典型用途 |
-|---|---|---|---|
-| `tokens.bg.base` | `--dsw-alias-bg-base` | `#ffffff` | 工作台/页面主底色 |
-| `tokens.bg.subtle` | `--dsw-alias-bg-subtle` | `#f9fafb` | 卡片背景、次级区域底色 |
-| `tokens.bg.elevated` | `--dsw-alias-bg-elevated` | `#ffffff` | 弹窗、气泡等抬升容器底色 |
-| `tokens.bg.overlay` | `--dsw-alias-bg-overlay` | `rgba(0,0,0,0.5)` | 浮层遮罩底色 |
-| `tokens.text.primary` | `--dsw-alias-label-primary` | `#111827` | 主标题、正文文本 |
-| `tokens.text.secondary` | `--dsw-alias-label-secondary` | `#4b5563` | 描述信息、副标题 |
-| `tokens.text.tertiary` | `--dsw-alias-label-tertiary` | `#9ca3af` | 弱化提示、占位符 |
-| `tokens.border.l1` | `--dsw-alias-border-l1` | `rgba(0,0,0,0.05)` | 细分割线 |
-| `tokens.border.l2` | `--dsw-alias-border-l2` | `rgba(0,0,0,0.1)` | 默认边框 |
-| `tokens.border.l3` | `--dsw-alias-border-l3` | `#d1d5db` | 强边框、输入框焦点外框 |
-| `tokens.brand.primary`| `--dsw-alias-brand-primary` | `#2563eb` | 主品牌色、主操作按钮 |
-| `tokens.brand.hover`  | `--dsw-alias-brand-hover`   | `#1d4ed8` | 主品牌色悬停态 |
-| `tokens.state.error`  | `--dsw-alias-state-error-primary`   | `#dc2626` | 错误、危险操作 |
-| `tokens.state.warning`| `--dsw-alias-state-warning-primary` | `#d97706` | 警告状态 |
-| `tokens.state.success`| `--dsw-alias-state-success-primary` | `#16a34a` | 成功状态 |
-| `tokens.state.info`   | `--dsw-alias-state-info-primary`    | `#2563eb` | 信息通知 |
+| Token 路径 | CSS 变量 | 典型用途 |
+|---|---|---|
+| `tokens.bg.base` | `--fabric-surface-base` | 页面主底 |
+| `tokens.bg.subtle` | `--fabric-surface-muted` | 次级区域 |
+| `tokens.bg.elevated` | `--fabric-surface-raised` | 弹窗/卡片 |
+| `tokens.bg.overlay` | `--fabric-surface-overlay` | 遮罩 |
+| `tokens.text.primary` | `--fabric-content-primary` | 正文 |
+| `tokens.text.secondary` | `--fabric-content-secondary` | 说明 |
+| `tokens.text.tertiary` | `--fabric-content-tertiary` | 弱化提示 |
+| `tokens.border.l1` | `--fabric-border-subtle` | 细分割线 |
+| `tokens.border.l2` | `--fabric-border-default` | 默认边框 |
+| `tokens.border.l3` | `--fabric-border-strong` | 强调边框 |
+| `tokens.brand.primary` | `--fabric-accent-primary` | 主操作 |
+| `tokens.state.error` | `--fabric-state-danger-foreground` | 危险 |
+| `tokens.state.success` | `--fabric-state-success-foreground` | 成功 |
 
 ### 1.2 `Z_INDEX` 层级规范
 ```ts
@@ -232,18 +229,12 @@ import { Badge, LoadingState, EmptyState, ErrorState } from '@dsh-do/fabric/ui'
 ## 5. 声明式配置表单
 
 ### 5.1 `useFabricConfig` & `ConfigForm`
-直接绑定由 `ctx.fabric.registerConfig` 声明的 Schema 配置：
+直接绑定由 `ctx.config.define(...)` 得到的 handle：
 
 ```tsx
-import { useFabricConfig, ConfigForm } from '@dsh-do/fabric/ui'
+import { ConfigForm } from '@dsh-do/fabric/ui'
 
-export function PluginSettings() {
-  const config = useFabricConfig<{ autoSave: boolean; interval: number }>('my-plugin')
-
-  return (
-    <div>
-      <ConfigForm config={config} />
-    </div>
-  )
+export function PluginSettings({ config }: { config: ReturnType<FabricClientPluginContext['config']['define']> }) {
+  return <ConfigForm config={config} />
 }
 ```

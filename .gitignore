@@ -1,5 +1,7 @@
 node_modules/
 lib/
+.scratch-types/
+.scratch-types-current/
 coverage/
 *.tgz
 .pack-probe/

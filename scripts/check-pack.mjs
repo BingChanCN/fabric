@@ -82,6 +82,7 @@ try {
     'lib/create.js',
     'types/index.d.ts',
     'types/client.d.ts',
+    'types/host.d.ts',
     'types/sdk.d.ts',
     'types/ui.d.ts',
     'types/build.d.ts',
@@ -127,23 +128,21 @@ try {
 
   const client = await readFile(join(packageRoot, 'lib/client.js'), 'utf8')
   if (!client.startsWith('window.__ModuleLoader__.load(')) fail('lib/client.js is not a prebuilt DSH ModuleLoader bundle')
-  if (!/\bid:\s*["']fabric["']/.test(client)) fail('lib/client.js registers the wrong module id')
-  if (/require\(["']@dsh-do\/fabric(?:\/client)?["']\)/.test(client)) {
+  if (!/\bid:\s*["']@dsh-do\/fabric["']/.test(client)) fail('lib/client.js registers the wrong module id')
+  if (/require\(["']@dsh-do\/fabric(?:\/client|\/ui|\/sdk)?["']\)/.test(client)) {
     fail('lib/client.js imports a second Fabric runtime')
   }
 
   const clientTypes = await readFile(join(packageRoot, 'types/client.d.ts'), 'utf8')
-  if (!/register\(contribution:\s*FabricContribution\):\s*\(\)\s*=>\s*void/.test(clientTypes)) {
-    fail('types/client.d.ts does not expose FabricService.register')
+  if (!clientTypes.includes('defineClientPlugin')) fail('types/client.d.ts does not expose defineClientPlugin')
+  if (!clientTypes.includes('FabricClientPluginContext')) fail('types/client.d.ts is missing FabricClientPluginContext')
+  if (clientTypes.includes('registerConfig') || clientTypes.includes("kind: 'mod'")) {
+    fail('types/client.d.ts still exposes the deleted 0.4 contribution API')
   }
-  for (const kind of ['page', 'toolbar', 'overlay', 'settings', 'theme', 'mod', 'config', 'command']) {
-    if (!clientTypes.includes(`kind: '${kind}'`)) fail(`types/client.d.ts is missing the ${kind} contribution`)
-  }
-  if (!clientTypes.includes('registerConfig')) fail('types/client.d.ts is missing registerConfig')
 
   const build = await readFile(join(packageRoot, 'lib/build.js'), 'utf8')
-  if (!build.includes('runtime import') || !build.includes('@dsh-do/fabric/client')) {
-    fail('lib/build.js does not enforce the Fabric runtime import boundary')
+  if (!build.includes('fabric-runtime-import-boundary') || !build.includes('@dsh-do/fabric/')) {
+    fail('lib/build.js does not rewrite Fabric subpaths onto the singleton ABI')
   }
 
   console.log(`pack check passed: ${manifest.name}@${manifest.version} (${archives[0]})`)

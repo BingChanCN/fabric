@@ -1,13 +1,12 @@
-import { IconRefreshOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { ToolbarButton } from '@dsh-do/fabric/ui'
-import type { FabricToolbarActionProps } from '@dsh-do/fabric/client'
+import type { FabricPageActionProps } from '@dsh-do/fabric/client'
 
-export function RefreshAction({ notify, activePage }: FabricToolbarActionProps) {
+export function RefreshAction({ notify, pageId }: FabricPageActionProps) {
   return (
     <ToolbarButton
       label="Refresh example page"
-      icon={<IconRefreshOutline16 size={16} />}
-      onClick={() => { notify(`Refreshed ${activePage ?? 'page'}`, { tone: 'info' }) }}
+      icon="↻"
+      onClick={() => { notify(`Refreshed ${pageId ?? 'page'}`, { tone: 'info' }) }}
     />
   )
 }

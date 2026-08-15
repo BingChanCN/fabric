@@ -1,6 +1,6 @@
 {
   "name": "@dsh-do/fabric",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Composable frontend framework for DeepSeek Harness plugins",
   "type": "module",
   "author": "BingChanCN",

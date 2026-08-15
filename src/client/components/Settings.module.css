@@ -4,13 +4,13 @@
   gap: 18px;
   min-width: 0;
   padding: 4px 0 24px;
-  color: var(--dsw-alias-label-primary);
+  color: var(--fabric-content-primary);
 }
 
 .empty {
   margin: 0;
   padding: 28px 0;
-  color: var(--dsw-alias-label-tertiary);
+  color: var(--fabric-content-tertiary);
   font-size: 13px;
   text-align: center;
 }

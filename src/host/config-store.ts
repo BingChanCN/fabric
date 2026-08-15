@@ -40,6 +40,7 @@ function parseDocument(id: string, raw: string): HostConfigDocument | undefined 
 export class FabricConfigRepository {
   private readonly root: string
   private ready: Promise<void> | undefined
+  private writeQueue: Promise<void> = Promise.resolve()
 
   constructor(root?: string) {
     this.root = configRoot(root)
@@ -76,12 +77,16 @@ export class FabricConfigRepository {
     if (!isConfigId(id)) throw new Error(`invalid config id "${id}"`)
     if (!Number.isFinite(seq) || seq < 0) throw new Error('seq must be a finite non-negative number')
     if (!isRecord(values)) throw new Error('values must be a JSON object')
-    const current = await this.read(id)
-    if (current.seq !== seq) return { ok: false, conflict: current }
-    const document: HostConfigDocument = { id, seq: current.seq + 1, values }
-    await this.ensureRoot()
-    await writeFile(this.fileFor(id), `${JSON.stringify(document, null, 2)}\n`, 'utf8')
-    return { ok: true, document }
+    const operation = this.writeQueue.then(async () => {
+      const current = await this.read(id)
+      if (current.seq !== seq) return { ok: false, conflict: current } as const
+      const document: HostConfigDocument = { id, seq: current.seq + 1, values }
+      await this.ensureRoot()
+      await writeFile(this.fileFor(id), `${JSON.stringify(document, null, 2)}\n`, 'utf8')
+      return { ok: true, document } as const
+    })
+    this.writeQueue = operation.then(() => undefined, () => undefined)
+    return operation
   }
 
   private fileFor(id: string): string {

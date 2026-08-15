@@ -1,106 +1,92 @@
-import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import { isConfigId } from './sdk/config.ts'
-import type { JsonRecord } from './sdk/config.ts'
 import { FabricConfigRepository } from './host/config-store.ts'
+import { parseConfigSchema, validateConfigValues } from './sdk/config.ts'
+import { FabricResourceHostService, resourceRouteHandler, assetRouteHandler, FABRIC_RESOURCE_PREFIX, FABRIC_ASSET_PREFIX } from './host/resources.ts'
+import { fabricConfigResource } from './resource/config.ts'
+import { FabricResourceError } from './resource/contract.ts'
 
-const PREFIX = '/fabric/config'
+export { defineHostPlugin, mountHostPlugin } from './host/plugin.ts'
+export type { FabricHostLifecycle, FabricHostPluginContext, FabricHostPluginDefinition, FabricHostPluginDescriptor, FabricHostPluginIdentity } from './host/plugin.ts'
+export { assetUrl, FabricResourceError, defineCodec, defineResource, jsonCodec, voidCodec } from './resource/contract.ts'
+export { fabricConfigResource } from './resource/config.ts'
+export type {
+  FabricAssetContext, FabricAssetHandler, FabricAssetHost, FabricAssetResponse,
+  FabricCodec, FabricResourceContext, FabricResourceDefinition, FabricResourceEmitter,
+  FabricResourceHandler, FabricResourceHandlers, FabricResourceHost, FabricPluginResourceHost, FabricResourceScope,
+  FabricResourceStreamHandler, FabricSessionRef,
+} from './resource/contract.ts'
+export type { FabricConfigDocument, FabricConfigRequest, FabricConfigReadRequest, FabricConfigWriteRequest, FabricConfigValues } from './resource/config.ts'
+export { FabricResourceHostService, FABRIC_RESOURCE_PREFIX, FABRIC_ASSET_PREFIX }
 
-function writeJson(res: ServerResponse, status: number, value: unknown): void {
-  res.writeHead(status, {
-    'content-type': 'application/json; charset=utf-8',
-    'cache-control': 'no-store',
-  })
-  res.end(JSON.stringify(value))
-}
+/** Host half: persist Fabric config documents through the typed Resource dispatcher. */
+export const inject = ['webServer'] as const
 
-async function readJson(req: IncomingMessage): Promise<unknown> {
-  let body = ''
-  for await (const chunk of req) body += chunk.toString()
-  return body === '' ? undefined : JSON.parse(body)
-}
-
-function configIdFromPath(pathname: string): string | undefined {
-  if (pathname === PREFIX) return undefined
-  if (!pathname.startsWith(`${PREFIX}/`)) return undefined
-  const id = pathname.slice(PREFIX.length + 1)
-  return id === '' ? undefined : id
-}
-
-export async function handleFabricConfigRequest(
-  req: IncomingMessage,
-  res: ServerResponse,
-  repository: FabricConfigRepository,
-): Promise<void> {
-  const url = new URL(req.url ?? PREFIX, `http://${req.headers.host ?? 'localhost'}`)
-  const id = configIdFromPath(url.pathname)
-  const method = req.method ?? 'GET'
-
-  if (id === undefined) {
-    if (method !== 'GET') {
-      writeJson(res, 405, { error: 'method-not-allowed' })
-      return
-    }
-    writeJson(res, 200, { configs: await repository.list() })
-    return
-  }
-
-  if (!isConfigId(id)) {
-    writeJson(res, 400, { error: 'invalid-config-id', id })
-    return
-  }
-
-  if (method === 'GET') {
-    writeJson(res, 200, await repository.read(id))
-    return
-  }
-
-  if (method !== 'PUT') {
-    writeJson(res, 405, { error: 'method-not-allowed' })
-    return
-  }
-
-  try {
-    const body = await readJson(req)
-    if (body === null || typeof body !== 'object' || Array.isArray(body)) {
-      writeJson(res, 400, { error: 'invalid-json' })
-      return
-    }
-    const seq = (body as { seq?: unknown }).seq
-    const values = (body as { values?: unknown }).values
-    if (typeof seq !== 'number' || !Number.isFinite(seq) || seq < 0) {
-      writeJson(res, 400, { error: 'seq-must-be-non-negative' })
-      return
-    }
-    if (values === null || typeof values !== 'object' || Array.isArray(values)) {
-      writeJson(res, 400, { error: 'values-must-be-object' })
-      return
-    }
-    const result = await repository.write(id, seq, values as JsonRecord)
-    if (!result.ok) {
-      writeJson(res, 409, result.conflict)
-      return
-    }
-    writeJson(res, 200, result.document)
-  } catch {
-    writeJson(res, 400, { error: 'invalid-json' })
-  }
-}
-
-/** Host half: persist Fabric config documents under $DSH_HOME/fabric/config. */
+/** Host runtime: one resource dispatcher and one config repository per DSH profile. */
 export function apply(ctx: Context): void {
+  const resources = new FabricResourceHostService()
+  ctx.provide('fabricHost', resources)
   ctx.inject(['webServer'], webCtx => {
     const repository = new FabricConfigRepository()
+    const schemas = new Map<string, string>()
+    const getSchema = (id: string, rawSchema: unknown) => {
+      const schema = parseConfigSchema(rawSchema)
+      const serialized = JSON.stringify(schema)
+      const previous = schemas.get(id)
+      if (previous !== undefined && previous !== serialized) {
+        throw new FabricResourceError({ code: 'config-schema-conflict', message: `config "${id}" was registered with a different schema` })
+      }
+      schemas.set(id, serialized)
+      return schema
+    }
+    resources.provide('fabric', fabricConfigResource, {
+      query: async request => {
+        if (request.operation !== 'read') throw new FabricResourceError({ code: 'operation-not-supported', message: 'config query requires read operation' })
+        const schema = getSchema(request.id, request.schema)
+        try {
+          const document = await repository.read(request.id)
+          return { ...document, values: validateConfigValues(schema, document.values) }
+        } catch (error) {
+          if (error instanceof FabricResourceError) throw error
+          throw new FabricResourceError({ code: 'config-invalid', message: error instanceof Error ? error.message : String(error) })
+        }
+      },
+      mutate: async request => {
+        if (request.operation !== 'write') throw new FabricResourceError({ code: 'operation-not-supported', message: 'config mutation requires write operation' })
+        const schema = getSchema(request.id, request.schema)
+        let values
+        try {
+          values = validateConfigValues(schema, request.values)
+        } catch (error) {
+          throw new FabricResourceError({ code: 'config-invalid', message: error instanceof Error ? error.message : String(error) })
+        }
+        const result = await repository.write(request.id, request.seq, values)
+        if (!result.ok) {
+          throw new FabricResourceError({
+            code: 'config-conflict',
+            message: `config "${request.id}" changed on the host`,
+            details: result.conflict,
+            retryable: true,
+          })
+        }
+        return result.document
+      },
+    })
     webCtx.effect(() => {
-      const stop = webCtx.webServer.register({
+      const stopResources = webCtx.webServer.register({
         kind: 'prefix',
-        path: PREFIX,
-        handler: (req, res) => {
-          void handleFabricConfigRequest(req, res, repository)
-        },
+        path: FABRIC_RESOURCE_PREFIX,
+        handler: resourceRouteHandler(resources),
       })
-      return () => { stop() }
-    }, 'fabric: config routes')
+      const stopAssets = webCtx.webServer.register({
+        kind: 'prefix',
+        path: FABRIC_ASSET_PREFIX,
+        handler: assetRouteHandler(resources),
+      })
+      return () => {
+        stopAssets()
+        stopResources()
+      }
+    }, 'fabric: host routes')
   })
 }

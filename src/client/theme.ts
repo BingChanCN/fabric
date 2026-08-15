@@ -1,4 +1,6 @@
 import type { FabricThemeService, FabricThemeSetOptions } from './contract.ts'
+import type { FabricThemeDefinition } from './theme-contract.ts'
+import { semanticThemeToCss } from './theme-contract.ts'
 
 interface TokenEntry {
   readonly id: string
@@ -32,6 +34,55 @@ export class FabricThemeManager implements FabricThemeService {
   private mediaQuery: MediaQueryList | undefined
   private mediaListener: (() => void) | undefined
   private lastDark: boolean | undefined
+
+  setSemantic(id: string, theme: FabricThemeDefinition, options: FabricThemeSetOptions = {}): () => void {
+    const css = semanticThemeToCss(theme)
+    const dsh: Record<string, string> = {
+      ...css,
+      '--dsw-alias-bg-base': theme.surface.base,
+      '--dsw-alias-bg-layer-1': theme.surface.raised,
+      '--dsw-alias-bg-layer-2': theme.surface.muted,
+      '--dsw-alias-bg-layer-3': theme.surface.overlay,
+      '--dsw-alias-bg-subtle': theme.surface.muted,
+      '--dsw-alias-bg-elevated': theme.surface.raised,
+      '--dsw-alias-label-primary': theme.content.primary,
+      '--dsw-alias-label-secondary': theme.content.secondary,
+      '--dsw-alias-label-tertiary': theme.content.tertiary,
+      '--dsw-alias-label-caption': theme.content.disabled,
+      '--dsw-alias-label-inverse': theme.content.inverse,
+      '--dsw-alias-border-l1': theme.border.subtle,
+      '--dsw-alias-border-l2': theme.border.default,
+      '--dsw-alias-border-l3': theme.border.strong,
+      '--dsw-alias-brand-primary': theme.accent.primary,
+      '--dsw-alias-brand-hover': theme.accent.hover,
+      '--dsw-alias-brand-active': theme.accent.active,
+      '--dsw-alias-brand-subtle': theme.accent.surface,
+      '--dsw-alias-state-business-primary': theme.state.info.foreground,
+      '--dsw-alias-state-business-tertiary': theme.state.info.surface,
+      '--dsw-alias-state-info-primary': theme.state.info.foreground,
+      '--dsw-alias-state-info-tertiary': theme.state.info.surface,
+      '--dsw-alias-state-success-primary': theme.state.success.foreground,
+      '--dsw-alias-state-success-tertiary': theme.state.success.surface,
+      '--dsw-alias-state-warn-primary': theme.state.warning.foreground,
+      '--dsw-alias-state-warn-tertiary': theme.state.warning.surface,
+      '--dsw-alias-state-warning-primary': theme.state.warning.foreground,
+      '--dsw-alias-state-warning-tertiary': theme.state.warning.surface,
+      '--dsw-alias-state-error-primary': theme.state.danger.foreground,
+      '--dsw-alias-state-error-tertiary': theme.state.danger.surface,
+      '--dsw-alias-interactive-bg-hover': theme.interaction.hover,
+      '--dsw-alias-interactive-bg-active': theme.interaction.active,
+      '--dsw-alias-interactive-bg-selected': theme.interaction.selected,
+      '--dsw-alias-interactive-outline-focus': theme.interaction.focus,
+      '--dsw-material-acrylic-bg': theme.material.acrylicBackground,
+      '--dsw-material-acrylic-filter': theme.material.acrylicFilter,
+      '--dsw-material-edge-highlight': theme.material.edgeHighlight,
+      '--dsw-shadow-lv3': theme.material.shadow,
+      '--dsw-shadow-lv4': theme.material.shadow,
+      ...(theme.fontFamily === undefined ? {} : { '--dsw-font-family': theme.fontFamily }),
+      ...(theme.fontMono === undefined ? {} : { '--dsw-font-mono': theme.fontMono }),
+    }
+    return this.setTokens(id, dsh, options)
+  }
 
   setTokens(id: string, tokens: Record<string, string>, options: FabricThemeSetOptions = {}): () => void {
     const trimmed = id.trim()

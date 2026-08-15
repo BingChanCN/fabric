@@ -6,12 +6,14 @@ export type FabricCommandTitle = string | (() => string)
 export interface FabricCommandDefinition {
   id: string
   title: FabricCommandTitle
-  handler: () => void
+  handler: (signal: AbortSignal) => void | Promise<void>
   description?: string
   shortcut?: string
   pluginId?: string
   order?: number
 }
+
+export type FabricCommandStatus = 'idle' | 'pending' | 'error'
 
 export interface FabricCommandRecord {
   readonly id: string
@@ -20,6 +22,8 @@ export interface FabricCommandRecord {
   readonly shortcut?: string
   readonly pluginId?: string
   readonly order: number
+  readonly status: FabricCommandStatus
+  readonly error?: Error
 }
 
 export interface FabricCommandSnapshot {
@@ -31,6 +35,7 @@ export interface FabricCommandSnapshot {
 export interface FabricCommandService {
   register(command: FabricCommandDefinition): () => void
   execute(id: string): boolean
+  cancel(id: string): boolean
   list(): readonly FabricCommandRecord[]
   openPalette(): void
   closePalette(): void
@@ -49,6 +54,8 @@ export class FabricCommandRegistry extends ObservableStore<FabricCommandSnapshot
     revision: 0,
   })
   private readonly records = new Map<string, FabricCommandDefinition>()
+  private readonly active = new Map<string, AbortController>()
+  private readonly errors = new Map<string, Error>()
 
   constructor(private readonly onError?: (error: Error) => void) {
     super()
@@ -79,26 +86,63 @@ export class FabricCommandRegistry extends ObservableStore<FabricCommandSnapshot
   }
 
   register(command: FabricCommandDefinition): () => void {
-    if (this.records.has(command.id)) {
-      throw new Error(`fabric command "${command.id}" is already registered`)
-    }
+    if (this.records.has(command.id)) throw new Error(`fabric command "${command.id}" is already registered`)
     this.records.set(command.id, command)
     this.publishCommands()
     return () => {
-      this.records.delete(command.id)
-      this.publishCommands()
+      this.cancel(command.id)
+      if (this.records.delete(command.id)) {
+        this.errors.delete(command.id)
+        this.publishCommands()
+      }
     }
   }
 
   execute(id: string): boolean {
     const command = this.records.get(id)
-    if (command === undefined) return false
+    if (command === undefined || this.active.has(id)) return false
+    const controller = new AbortController()
+    this.active.set(id, controller)
+    this.errors.delete(id)
+    this.publishCommands()
     try {
-      command.handler()
+      const result = command.handler(controller.signal)
+      if (result === undefined) {
+        this.active.delete(id)
+        this.publishCommands()
+      } else {
+        void result.then(
+          () => {
+            if (this.active.get(id) !== controller) return
+            this.active.delete(id)
+            this.publishCommands()
+          },
+          error => {
+            if (this.active.get(id) !== controller) return
+            this.active.delete(id)
+            const failure = error instanceof Error ? error : new Error(String(error))
+            this.errors.set(id, failure)
+            this.onError?.(failure)
+            this.publishCommands()
+          },
+        )
+      }
     } catch (error) {
-      this.onError?.(error instanceof Error ? error : new Error(String(error)))
-      return false
+      this.active.delete(id)
+      const failure = error instanceof Error ? error : new Error(String(error))
+      this.errors.set(id, failure)
+      this.onError?.(failure)
+      this.publishCommands()
     }
+    return true
+  }
+
+  cancel(id: string): boolean {
+    const controller = this.active.get(id)
+    if (controller === undefined) return false
+    controller.abort()
+    this.active.delete(id)
+    this.publishCommands()
     return true
   }
 
@@ -121,7 +165,10 @@ export class FabricCommandRegistry extends ObservableStore<FabricCommandSnapshot
   }
 
   dispose(): void {
+    for (const controller of this.active.values()) controller.abort()
+    this.active.clear()
     this.records.clear()
+    this.errors.clear()
     this.clearSubscribers()
     this.snapshot = Object.freeze({
       commands: Object.freeze([]),
@@ -132,14 +179,19 @@ export class FabricCommandRegistry extends ObservableStore<FabricCommandSnapshot
 
   private publishCommands(): void {
     const commands = [...this.records.values()]
-      .map((command): FabricCommandRecord => Object.freeze({
-        id: command.id,
-        title: typeof command.title === 'function' ? command.title() : command.title,
-        order: command.order ?? 0,
-        ...(command.description !== undefined ? { description: command.description } : {}),
-        ...(command.shortcut !== undefined ? { shortcut: command.shortcut } : {}),
-        ...(command.pluginId !== undefined ? { pluginId: command.pluginId } : {}),
-      }))
+      .map((command): FabricCommandRecord => {
+        const error = this.errors.get(command.id)
+        return Object.freeze({
+          id: command.id,
+          title: typeof command.title === 'function' ? command.title() : command.title,
+          order: command.order ?? 0,
+          status: this.active.has(command.id) ? 'pending' : error === undefined ? 'idle' : 'error',
+          ...(command.description !== undefined ? { description: command.description } : {}),
+          ...(command.shortcut !== undefined ? { shortcut: command.shortcut } : {}),
+          ...(command.pluginId !== undefined ? { pluginId: command.pluginId } : {}),
+          ...(error === undefined ? {} : { error }),
+        })
+      })
       .sort((left, right) => left.order - right.order || left.id.localeCompare(right.id))
     this.setSnapshot({ commands: Object.freeze(commands) })
   }

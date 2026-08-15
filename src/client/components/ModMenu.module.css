@@ -9,24 +9,24 @@
 .label,
 .version,
 .meta {
-  color: var(--dsw-alias-label-secondary, #a0a0b0);
+  color: var(--fabric-content-secondary, #a0a0b0);
   font-size: 12px;
 }
 
 .version {
   font-variant-numeric: tabular-nums;
   padding: 2px 8px;
-  background: var(--dsw-alias-bg-layer-2, #252530);
+  background: var(--fabric-surface-muted, #252530);
   border-radius: 4px;
-  border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--fabric-border-subtle, rgba(255, 255, 255, 0.08));
 }
 
 .link {
   padding: 4px 12px;
-  border: 1px solid var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.15));
+  border: 1px solid var(--fabric-border-default, rgba(255, 255, 255, 0.15));
   border-radius: 999px;
-  background: var(--dsw-alias-bg-layer-2, #22222c);
-  color: var(--dsw-alias-label-primary, #ffffff);
+  background: var(--fabric-surface-muted, #22222c);
+  color: var(--fabric-content-primary, #ffffff);
   cursor: pointer;
   font: inherit;
   font-size: 12px;
@@ -35,8 +35,8 @@
 }
 
 .link:hover {
-  background: var(--dsw-alias-interactive-bg-hover, #2f2f3d);
-  border-color: var(--dsw-alias-brand-primary, #4176e6);
+  background: var(--fabric-interaction-hover, #2f2f3d);
+  border-color: var(--fabric-accent-primary, #4176e6);
 }
 
 .config {
@@ -45,9 +45,9 @@
   gap: 12px;
   margin-top: 14px;
   padding: 16px;
-  background: var(--dsw-alias-bg-layer-1, #181820);
+  background: var(--fabric-surface-raised, #181820);
   border-radius: 8px;
-  border: 1px solid var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--fabric-border-subtle, rgba(255, 255, 255, 0.08));
 }
 
 .configHeader {
@@ -58,5 +58,5 @@
 
 .configHeader strong {
   font-size: 14px;
-  color: var(--dsw-alias-label-primary, #ffffff);
+  color: var(--fabric-content-primary, #ffffff);
 }

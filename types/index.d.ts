@@ -1,8 +1,10 @@
-import type { Context } from '@deepseek-ai/cordis'
-
-/**
- * Host-side Cordis entry.
- * Registers prefix route `/fabric/config` for schema-driven config documents
- * persisted under `$DSH_HOME/fabric/config`.
- */
-export declare function apply(ctx: Context): void
+export { defineHostPlugin, mountHostPlugin, assetUrl, FabricResourceError, defineCodec, defineResource, jsonCodec, voidCodec } from './host'
+export type {
+  FabricAssetContext, FabricAssetHandler, FabricAssetHost, FabricAssetResponse,
+  FabricCodec, FabricHostLifecycle, FabricHostPluginContext, FabricHostPluginDefinition,
+  FabricHostPluginDescriptor, FabricHostPluginIdentity, FabricResourceContext,
+  FabricResourceDefinition, FabricResourceEmitter, FabricResourceHandler,
+  FabricResourceHandlers, FabricResourceHost, FabricPluginResourceHost, FabricResourceScope,
+  FabricResourceStreamHandler, FabricSessionRef,
+} from './host'
+export { FabricResourceHostService, FABRIC_RESOURCE_PREFIX, FABRIC_ASSET_PREFIX } from './host'

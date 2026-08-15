@@ -7,17 +7,29 @@ import { parseCreateArgs, renderScaffold, scaffoldPlugin } from '../src/create/i
 describe('create-fabric-plugin', () => {
   it('derives a valid plugin name from the target directory', () => {
     expect(parseCreateArgs(['./tmp/my-plugin']).name).toBe('my-plugin')
+    expect(parseCreateArgs(['@dsh-do/theme-kit'])).toEqual({
+      directory: expect.stringMatching(/theme-kit$/u),
+      name: '@dsh-do/theme-kit',
+    })
     expect(() => parseCreateArgs(['123bad'])).toThrow(/invalid/)
     expect(() => parseCreateArgs([])).toThrow(/usage/)
   })
 
-  it('writes a client entry that waits for fabric', async () => {
+  it('writes a generated-bootstrap client that never mentions DSH types', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'fabric-create-'))
     const written = await scaffoldPlugin({ directory, name: 'demo-mod' })
     expect(written).toContain('src/client/index.ts')
     const client = await readFile(join(directory, 'src/client/index.ts'), 'utf8')
-    expect(client).toContain("export const inject = ['fabric'] as const")
-    expect(client).toContain("kind: 'page'")
-    expect(renderScaffold('demo-mod')['package.json']).toContain('"@dsh-do/fabric": "^0.4.0"')
+    expect(client).toContain('defineClientPlugin')
+    expect(client).toContain('ctx.pages.define')
+    expect(client).not.toContain('ClientContext')
+    expect(client).not.toContain("export const inject")
+    expect(client).not.toContain('ctx.fabric.register')
+    const host = await readFile(join(directory, 'src/index.ts'), 'utf8')
+    expect(host).toContain('defineHostPlugin')
+    expect(host).toContain('mountHostPlugin')
+    const manifest = renderScaffold('demo-mod')['package.json'] ?? ''
+    expect(manifest).toContain('"@dsh-do/fabric": "^0.5.0"')
+    expect(manifest).toContain('"inject": [\n        "@dsh-do/fabric"\n      ]')
   })
 })

@@ -1,24 +1,20 @@
 import { useMemo, useState } from 'react'
-import { createJsonClient, createAsyncResource } from '@dsh-do/fabric/sdk'
+import { createAsyncResource } from '@dsh-do/fabric/sdk'
 import {
   AsyncView, Badge, Dropdown, EmptyState, Modal, Page, PageHeader, Popover, Section,
   useAsyncResource, useFabricConfig,
 } from '@dsh-do/fabric/ui'
 import type { FabricPageProps } from '@dsh-do/fabric/client'
+import { statusResource, type ExampleStatus } from '../resources.ts'
 import css from './example.module.css'
 
-type StatusPayload = {
-  readonly status: 'ok'
-  readonly sessionId?: string
-}
-
-export function ExamplePage({ sessionId, openFabric, notify }: FabricPageProps) {
+export function ExamplePage({ sessionId, resources, config: getConfig, openFabric, notify }: FabricPageProps) {
   const [modalOpen, setModalOpen] = useState(false)
-  const config = useFabricConfig<{ enabled: boolean }>('hello-fabric')
-  const resource = useMemo(() => createAsyncResource<StatusPayload>(async signal => {
-    const client = createJsonClient({ sessionId: () => sessionId })
-    return client.get<StatusPayload>('/fabric-example/status', { signal })
-  }), [sessionId])
+  const config = useFabricConfig<{ enabled: boolean }>(getConfig('dsh-do.hello-fabric.preferences'))
+  const resource = useMemo(() => createAsyncResource<ExampleStatus>(async signal => {
+    if (sessionId === undefined) throw new Error('select a session before querying status')
+    return resources.read(statusResource, undefined, { signal, session: { id: sessionId } })
+  }), [resources, sessionId])
   const snapshot = useAsyncResource(resource, { load: false })
 
   const loadStatus = (): void => {
@@ -34,7 +30,7 @@ export function ExamplePage({ sessionId, openFabric, notify }: FabricPageProps) 
         description="A small downstream plugin using Fabric's page and SDK contracts."
         actions={<button type="button" className={css.button} onClick={loadStatus}>Check session API</button>}
       />
-      <Section title="Persisted config" description="useFabricConfig reads the schema store; edits debounce to /fabric/config/hello-fabric.">
+      <Section title="Persisted config" description="useFabricConfig reads the typed Fabric config handle.">
         <label className={css.row}>
           <input
             type="checkbox"
@@ -44,7 +40,7 @@ export function ExamplePage({ sessionId, openFabric, notify }: FabricPageProps) 
           <span>Enabled ({config.dirty ? 'unsaved' : config.status})</span>
         </label>
       </Section>
-      <Section title="Current session" description="The host supplies this value through the session-maybe standard kit.">
+      <Section title="Current session" description="The page context provides an explicit session reference.">
         <div className={css.row}>
           <Badge tone={sessionId === undefined ? 'warning' : 'success'}>
             {sessionId === undefined ? 'No session selected' : sessionId}
@@ -87,7 +83,7 @@ export function ExamplePage({ sessionId, openFabric, notify }: FabricPageProps) 
           </p>
         </Modal>
       </Section>
-      <Section title="Request lifecycle" description="AsyncResource cancels stale requests and keeps refresh state stable.">
+      <Section title="Request lifecycle" description="The typed Resource client owns transport and cancellation.">
         <AsyncView
           snapshot={snapshot}
           empty={<EmptyState title="No request yet" description="Run the session API check to populate this view." />}

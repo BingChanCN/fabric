@@ -251,3 +251,19 @@ export interface FabricConfigRuntime {
 }
 export declare function installConfigRuntime(runtime: FabricConfigRuntime | undefined): void
 export declare function getConfigRuntime(): FabricConfigRuntime
+
+export type FabricResourceScope = 'profile' | 'session'
+export interface FabricSessionRef { readonly id: string }
+export interface FabricCodec<T> { parse(value: unknown): T }
+export interface FabricResourceDefinition<Request, Response, Event = never> { readonly id: string; readonly version: string; readonly scope: FabricResourceScope; readonly request: FabricCodec<Request>; readonly response: FabricCodec<Response>; readonly event?: FabricCodec<Event> }
+export interface FabricResourceContext { readonly pluginId: string; readonly resourceId: string; readonly scope: FabricResourceScope; readonly session: FabricSessionRef | undefined; readonly signal: AbortSignal }
+export type FabricResourceHandler<Request, Response> = (request: Request, context: FabricResourceContext) => Response | Promise<Response>
+export type FabricResourceEmitter<Event> = (event: Event) => void
+export type FabricResourceStreamHandler<Request, Event> = (request: Request, context: FabricResourceContext, emit: FabricResourceEmitter<Event>) => void | (() => void) | Promise<void | (() => void)>
+export interface FabricResourceHandlers<Request, Response, Event = never> { readonly query?: FabricResourceHandler<Request, Response>; readonly mutate?: FabricResourceHandler<Request, Response>; readonly stream?: FabricResourceStreamHandler<Request, Event> }
+export interface FabricResourceClient { read<Request, Response>(resource: FabricResourceDefinition<Request, Response, never>, request: Request, options?: { readonly signal?: AbortSignal; readonly session?: FabricSessionRef }): Promise<Response>; mutate<Request, Response>(resource: FabricResourceDefinition<Request, Response, never>, request: Request, options?: { readonly signal?: AbortSignal; readonly session?: FabricSessionRef }): Promise<Response>; watch<Request, Event>(resource: FabricResourceDefinition<Request, unknown, Event> & { readonly event: FabricCodec<Event> }, request: Request, options?: unknown): unknown }
+export class FabricResourceError extends Error { readonly code: string; readonly details: unknown; readonly retryable: boolean }
+export declare function defineCodec<T>(parse: (value: unknown) => T): FabricCodec<T>
+export declare function defineResource<Request, Response, Event = never>(definition: FabricResourceDefinition<Request, Response, Event>): FabricResourceDefinition<Request, Response, Event>
+export declare const jsonCodec: FabricCodec<unknown>
+export declare const voidCodec: FabricCodec<void>

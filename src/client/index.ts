@@ -4,7 +4,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
-import { createJsonClient } from '../sdk/http.ts'
+import { fabricConfigResource } from '../resource/config.ts'
+import { FabricResourceClientService } from './resources.ts'
 import { FabricCapabilityRegistry } from './capabilities.ts'
 import { FabricCommandRegistry } from './commands.ts'
 import { FabricConfigRegistry } from './config-registry.ts'
@@ -21,17 +22,34 @@ import type {
   FabricSettingsInjected, WorkbenchInjected,
 } from './components/props.ts'
 import { en, zh } from './locales.ts'
+import type { FabricThemeDefinition } from './theme-contract.ts'
+
+export { defineClientPlugin, mountClientPlugin } from './plugin.ts'
+export type { JsonRecord, FabricConfigSchema, ConfigResourceTransport } from '../sdk/config.ts'
+export type { JsonValue } from '../sdk/http.ts'
 
 export type {
-  FabricConfigContribution, FabricContribution, FabricModContribution,
-  FabricNotice, FabricNoticeOptions, FabricNoticeTone, FabricOverlayContribution,
-  FabricOverlayOwnerProps, FabricOverlayProps, FabricPageContribution,
-  FabricPageEntry, FabricPageOwnerProps, FabricPageProps, FabricService,
-  FabricSettingsContribution, FabricSettingsOwnerProps, FabricSettingsProps,
-  FabricSnapshot, FabricThemeContribution, FabricThemeService, FabricThemeSetOptions,
-  FabricToolbarActionOwnerProps, FabricToolbarActionProps, FabricToolbarContribution,
-  FabricCommandContribution, FabricCapabilityService, FabricCommandService,
-} from './contract.ts'
+  FabricCapabilityDefinition, FabricCapabilityHandle, FabricClientPluginContext,
+  FabricClientPluginDefinition, FabricCommandDefinition, FabricConfigDefinition,
+  FabricConfigHandle, FabricLifecycle, FabricOverlayDefinition, FabricPageActionDefinition, FabricPageActionProps,
+  FabricPageContext, FabricPageDefinition, FabricPageHandle, FabricPageProps,
+  FabricPluginDescriptor, FabricPluginIdentity, FabricSettingsProps, FabricOverlayProps,
+} from './plugin.ts'
+export { FabricResourceClientService } from './resources.ts'
+export { defineCodec, defineResource, FabricResourceError, jsonCodec, voidCodec } from '../resource/contract.ts'
+export type {
+  FabricCodec, FabricResourceClient, FabricResourceContext, FabricResourceDefinition,
+  FabricResourceEmitter, FabricResourceHandler, FabricResourceHandlers, FabricResourceScope,
+  FabricResourceStreamHandler, FabricSessionRef,
+} from '../resource/contract.ts'
+export type {
+  FabricSemanticAccent, FabricSemanticBorder, FabricSemanticContent, FabricSemanticInteraction,
+  FabricSemanticMaterial, FabricSemanticState, FabricSemanticStates, FabricSemanticSurface,
+  FabricThemeDefinition, FabricThemeProvider,
+} from './theme-contract.ts'
+export * from '../ui/index.tsx'
+
+export type { FabricNoticeOptions, FabricNoticeTone } from './contract.ts'
 
 const NS = 'fabric'
 
@@ -74,7 +92,60 @@ export function apply(ctx: ClientContext): void {
   }
   const controller = new FabricController(catalog)
   const theme = new FabricThemeManager()
-  const configs = new FabricConfigRegistry(createJsonClient({ sessionId: () => undefined }))
+  const defaultTheme: FabricThemeDefinition = {
+    surface: {
+      base: '#ffffff',
+      raised: '#ffffff',
+      sunken: '#f3f4f6',
+      muted: '#eef0f3',
+      overlay: 'rgba(0, 0, 0, 0.45)',
+    },
+    content: {
+      primary: '#111827',
+      secondary: '#4b5563',
+      tertiary: '#6b7280',
+      disabled: '#9ca3af',
+      inverse: '#ffffff',
+    },
+    border: {
+      subtle: 'rgba(0, 0, 0, 0.08)',
+      default: 'rgba(0, 0, 0, 0.14)',
+      strong: 'rgba(0, 0, 0, 0.24)',
+      focus: '#2563eb',
+    },
+    accent: {
+      primary: '#2563eb',
+      hover: '#1d4ed8',
+      active: '#1e40af',
+      surface: 'rgba(37, 99, 235, 0.14)',
+    },
+    state: {
+      info: { foreground: '#1d4ed8', surface: 'rgba(37, 99, 235, 0.14)', border: 'rgba(37, 99, 235, 0.32)' },
+      success: { foreground: '#166534', surface: 'rgba(22, 101, 52, 0.14)', border: 'rgba(22, 101, 52, 0.32)' },
+      warning: { foreground: '#92400e', surface: 'rgba(146, 64, 14, 0.14)', border: 'rgba(146, 64, 14, 0.32)' },
+      danger: { foreground: '#991b1b', surface: 'rgba(153, 27, 27, 0.14)', border: 'rgba(153, 27, 27, 0.32)' },
+    },
+    interaction: {
+      hover: 'rgba(0, 0, 0, 0.06)',
+      active: 'rgba(37, 99, 235, 0.16)',
+      selected: 'rgba(37, 99, 235, 0.12)',
+      focus: '#2563eb',
+    },
+    material: {
+      acrylicBackground: 'rgba(255, 255, 255, 0.86)',
+      acrylicFilter: 'blur(18px)',
+      edgeHighlight: 'rgba(255, 255, 255, 0.72)',
+      shadow: '0 12px 32px rgba(0, 0, 0, 0.18)',
+    },
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    fontMono: 'ui-monospace, SFMono-Regular, monospace',
+  }
+  const stopDefaultTheme = theme.setSemantic('fabric:defaults', defaultTheme, { priority: -100 })
+  const resourceClient = new FabricResourceClientService('fabric')
+  const configs = new FabricConfigRegistry({
+    read: async (id, schema) => resourceClient.read(fabricConfigResource, { operation: 'read', id, schema }),
+    write: async (id, seq, values, schema) => resourceClient.mutate(fabricConfigResource, { operation: 'write', id, seq, values, schema }),
+  })
   const commands = new FabricCommandRegistry(error => { controller.notify(error.message, { tone: 'error' }) })
   const capabilities = new FabricCapabilityRegistry()
   service = new FabricRuntimeService(ctx, controller, theme, configs, commands, capabilities)
@@ -89,6 +160,7 @@ export function apply(ctx: ClientContext): void {
       stopCommands()
       stopPages()
       controller.dispose()
+      stopDefaultTheme()
       theme.dispose()
       configs.dispose()
       commands.dispose()

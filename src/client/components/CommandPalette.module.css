@@ -18,21 +18,21 @@
   width: min(520px, calc(100vw - 32px));
   margin: 12vh auto 0;
   overflow: hidden;
-  border: 1px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.12));
+  border: 1px solid var(--fabric-border-default, rgba(0, 0, 0, 0.12));
   border-radius: 12px;
-  background: var(--dsw-material-acrylic-bg, var(--dsw-alias-bg-elevated, #fff));
-  backdrop-filter: var(--dsw-material-acrylic-filter, none);
-  -webkit-backdrop-filter: var(--dsw-material-acrylic-filter, none);
-  box-shadow: var(--dsw-material-edge-highlight, none), var(--dsw-shadow-lv4, 0 16px 48px rgba(0, 0, 0, 0.18));
-  color: var(--dsw-alias-label-primary, #111827);
-  font-family: var(--dsw-font-family, system-ui, sans-serif);
+  background: var(--fabric-material-acrylic-background, var(--fabric-surface-raised, #fff));
+  backdrop-filter: var(--fabric-material-acrylic-filter, none);
+  -webkit-backdrop-filter: var(--fabric-material-acrylic-filter, none);
+  box-shadow: var(--fabric-material-edge-highlight, none), var(--fabric-material-shadow, 0 16px 48px rgba(0, 0, 0, 0.18));
+  color: var(--fabric-content-primary, #111827);
+  font-family: var(--fabric-font-family, system-ui, sans-serif);
 }
 
 .input {
   width: 100%;
   padding: 14px 16px;
   border: 0;
-  border-bottom: 1px solid var(--dsw-alias-border-l1, rgba(0, 0, 0, 0.06));
+  border-bottom: 1px solid var(--fabric-border-subtle, rgba(0, 0, 0, 0.06));
   background: transparent;
   color: inherit;
   font: inherit;
@@ -64,7 +64,7 @@
 }
 
 .empty {
-  color: var(--dsw-alias-label-secondary, #6b7280);
+  color: var(--fabric-content-secondary, #6b7280);
 }
 
 .item {
@@ -72,7 +72,7 @@
 }
 
 .item[data-active] {
-  background: var(--dsw-alias-interactive-bg-hover, #f3f4f6);
+  background: var(--fabric-interaction-hover, #f3f4f6);
 }
 
 .title {
@@ -86,9 +86,9 @@
 .shortcut {
   flex: none;
   padding: 1px 6px;
-  border: 1px solid var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.12));
+  border: 1px solid var(--fabric-border-default, rgba(0, 0, 0, 0.12));
   border-radius: 4px;
-  color: var(--dsw-alias-label-secondary, #6b7280);
+  color: var(--fabric-content-secondary, #6b7280);
   font-size: 11px;
   font-family: inherit;
 }

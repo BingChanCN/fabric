@@ -246,17 +246,17 @@ describe('FabricRuntimeService.register', () => {
           title: 'Ping',
           handler: () => {},
         })
-        pluginCtx.fabric.registerCapability('demo-cap', { ok: true })
+        pluginCtx.fabric.registerCapability('demo-cap', '1', 'profile', { ok: true })
       },
     })
 
     await downstream.await()
     expect(ctx.fabric.commands.list().map(command => command.id)).toContain('demo.ping')
-    expect(ctx.fabric.getCapability<{ ok: boolean }>('demo-cap')).toEqual({ ok: true })
+    expect(ctx.fabric.getCapability<{ ok: boolean }>('demo-cap', '1')).toEqual({ ok: true })
 
     await downstream.dispose()
     expect(ctx.fabric.commands.list().some(command => command.id === 'demo.ping')).toBe(false)
-    expect(ctx.fabric.getCapability('demo-cap')).toBeUndefined()
+    expect(ctx.fabric.getCapability('demo-cap', '1')).toBeUndefined()
     await ctx.fiber.dispose()
   })
 })

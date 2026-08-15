@@ -132,44 +132,56 @@ async function smokeWeb(environment) {
       if (!bundle.includes('window.__ModuleLoader__.load')) fail(`${id} client bundle is not a ModuleLoader closure`)
     }
 
-    const statusUrl = new URL('/fabric-example/status?sessionId=profile-smoke', baseUrl)
-    const initial = await readJson(await fetch(statusUrl, { signal: AbortSignal.timeout(15_000) }), 'example status route')
+    const resourcePost = async (pluginId, resourceId, operation, body, search = '') => {
+      const url = new URL(`/fabric/resource/${encodeURIComponent(pluginId)}/${encodeURIComponent(resourceId)}/${operation}${search}`, baseUrl)
+      return fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.timeout(15_000),
+      })
+    }
+    const unwrap = (payload, where) => {
+      if (payload === null || typeof payload !== 'object' || !('data' in payload)) {
+        fail(`${where} missing data envelope: ${JSON.stringify(payload)}`)
+      }
+      return payload.data
+    }
+    const schema = { enabled: { type: 'boolean', title: 'Enable example extras', default: false } }
+    const initial = unwrap(await readJson(await resourcePost('hello-fabric', 'status', 'query', undefined, '?sessionId=profile-smoke'), 'example status query'), 'example status query')
     if (initial.status !== 'ok' || initial.sessionId !== 'profile-smoke' || initial.enabled !== false) {
-      fail(`example status route returned an unexpected initial payload: ${JSON.stringify(initial)}`)
+      fail(`example status query returned an unexpected payload: ${JSON.stringify(initial)}`)
     }
-    const saved = await readJson(await fetch(new URL('/fabric-example/settings', baseUrl), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ enabled: true }),
-      signal: AbortSignal.timeout(15_000),
-    }), 'example settings route')
+    const saved = unwrap(await readJson(await resourcePost('hello-fabric', 'settings', 'mutate', { enabled: true }), 'example settings mutate'), 'example settings mutate')
     if (saved.saved !== true || saved.enabled !== true) {
-      fail(`example settings route returned an unexpected payload: ${JSON.stringify(saved)}`)
+      fail(`example settings mutate returned an unexpected payload: ${JSON.stringify(saved)}`)
     }
-    const updated = await readJson(await fetch(statusUrl, { signal: AbortSignal.timeout(15_000) }), 'updated example status route')
-    if (updated.enabled !== true) fail(`example route state did not persist: ${JSON.stringify(updated)}`)
+    const updated = unwrap(await readJson(await resourcePost('hello-fabric', 'status', 'query', undefined, '?sessionId=profile-smoke'), 'updated example status query'), 'updated example status query')
+    if (updated.enabled !== true) fail(`example resource state did not persist: ${JSON.stringify(updated)}`)
 
-    const configUrl = new URL('/fabric/config/hello-fabric', baseUrl)
-    const initialConfig = await readJson(await fetch(configUrl, { signal: AbortSignal.timeout(15_000) }), 'fabric config get')
-    if (initialConfig.id !== 'hello-fabric' || typeof initialConfig.seq !== 'number') {
-      fail(`fabric config GET returned an unexpected payload: ${JSON.stringify(initialConfig)}`)
+    const configId = 'hello-fabric.preferences'
+    const initialConfig = unwrap(await readJson(await resourcePost('fabric', 'config', 'query', { operation: 'read', id: configId, schema }), 'fabric config query'), 'fabric config query')
+    if (initialConfig.id !== configId || typeof initialConfig.seq !== 'number') {
+      fail(`fabric config query returned an unexpected payload: ${JSON.stringify(initialConfig)}`)
     }
-    const written = await readJson(await fetch(configUrl, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ seq: initialConfig.seq, values: { enabled: true } }),
-      signal: AbortSignal.timeout(15_000),
-    }), 'fabric config put')
+    const written = unwrap(await readJson(await resourcePost('fabric', 'config', 'mutate', {
+      operation: 'write',
+      id: configId,
+      seq: initialConfig.seq,
+      values: { enabled: true },
+      schema,
+    }), 'fabric config mutate'), 'fabric config mutate')
     if (written.seq !== initialConfig.seq + 1 || written.values?.enabled !== true) {
-      fail(`fabric config PUT returned an unexpected payload: ${JSON.stringify(written)}`)
+      fail(`fabric config mutate returned an unexpected payload: ${JSON.stringify(written)}`)
     }
-    const conflict = await fetch(configUrl, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ seq: initialConfig.seq, values: { enabled: false } }),
-      signal: AbortSignal.timeout(15_000),
+    const conflict = await resourcePost('fabric', 'config', 'mutate', {
+      operation: 'write',
+      id: configId,
+      seq: initialConfig.seq,
+      values: { enabled: false },
+      schema,
     })
-    if (conflict.status !== 409) fail(`fabric config stale PUT returned HTTP ${String(conflict.status)}`)
+    if (conflict.status !== 409) fail(`fabric config stale mutate returned HTTP ${String(conflict.status)}`)
 
     return baseUrl
   } catch (error) {
