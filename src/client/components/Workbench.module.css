@@ -208,6 +208,37 @@
   display: none;
 }
 
+.pageError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 28px 24px;
+  color: var(--fabric-content-secondary);
+  font-size: 13px;
+}
+
+.pageErrorHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fabric-state-danger-foreground);
+}
+
+.pageErrorRetry {
+  padding: 6px 14px;
+  border: 1px solid var(--fabric-border-default);
+  border-radius: 6px;
+  background: var(--fabric-surface-raised);
+  color: var(--fabric-content-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pageErrorRetry:hover {
+  background: var(--fabric-interaction-hover);
+}
+
 .empty {
   margin: 0;
   padding: 32px;

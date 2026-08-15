@@ -23,6 +23,8 @@ export type FabricLocaleKey =
   | 'command.open'
   | 'command.mods'
   | 'command.close'
+  | 'page.error'
+  | 'page.retry'
 
 export const zh: Record<FabricLocaleKey, string> = {
   name: 'Fabric',
@@ -49,6 +51,8 @@ export const zh: Record<FabricLocaleKey, string> = {
   'command.open': '打开 Fabric 工作台',
   'command.mods': '打开插件总览',
   'command.close': '关闭 Fabric 工作台',
+  'page.error': '这个页面渲染失败，已隔离。其它页面不受影响。',
+  'page.retry': '重试',
 }
 
 export const en: Record<FabricLocaleKey, string> = {
@@ -76,4 +80,6 @@ export const en: Record<FabricLocaleKey, string> = {
   'command.open': 'Open Fabric workbench',
   'command.mods': 'Open mod catalog',
   'command.close': 'Close Fabric workbench',
+  'page.error': 'This page failed to render and was isolated. Other pages are unaffected.',
+  'page.retry': 'Retry',
 }

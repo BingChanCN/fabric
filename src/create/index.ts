@@ -53,7 +53,7 @@ export function renderScaffold(name: string): Record<string, string> {
           platform: 'web',
         },
         dependencies: {
-          '@dsh-do/fabric': '^0.5.0',
+          '@dsh-do/fabric': '^0.6.0',
         },
       },
       scripts: {
@@ -61,12 +61,12 @@ export function renderScaffold(name: string): Record<string, string> {
         typecheck: 'tsc --noEmit',
       },
       peerDependencies: {
-        '@dsh-do/fabric': '^0.5.0',
+        '@dsh-do/fabric': '^0.6.0',
         react: '^18.2.0',
       },
       devDependencies: {
         '@types/react': '~18.3.1',
-        '@dsh-do/fabric': '^0.5.0',
+        '@dsh-do/fabric': '^0.6.0',
         react: '^18.3.1',
         tsdown: '0.22.2',
         typescript: '~5.7.2',

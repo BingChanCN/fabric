@@ -26,7 +26,7 @@ import type { FabricThemeDefinition } from './theme-contract.ts'
 
 export { defineClientPlugin, mountClientPlugin } from './plugin.ts'
 export type { JsonRecord, FabricConfigSchema, ConfigResourceTransport } from '../sdk/config.ts'
-export type { JsonValue } from '../sdk/http.ts'
+export type { JsonValue } from '../sdk/json.ts'
 
 export type {
   FabricCapabilityDefinition, FabricCapabilityHandle, FabricClientPluginContext,

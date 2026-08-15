@@ -11,6 +11,6 @@ npx create-fabric-plugin @dsh-do/my-plugin
 - `defineHostPlugin` + `mountHostPlugin` Host 入口
 - `dsh.client.inject: ["@dsh-do/fabric"]`
 - `fabricPlugin({ id })`，`id` 等于 `package.json.name`
-- peer `@dsh-do/fabric@^0.5.0`
+- peer `@dsh-do/fabric@^0.6.0`
 
 scoped 名会把目录建成短名（`my-plugin`），`package.json.name` 保留 `@scope/name`，runtime id 自动剥 scope。

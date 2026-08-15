@@ -32,7 +32,7 @@ const externals = {
   '@deepseek-ai/dsh-client-ui-slots': {
     resolveSlotLabel: value => typeof value === 'function' ? value() : value,
   },
-  react: {},
+  react: { Component: class {} },
   'react/jsx-runtime': {
     Fragment: Symbol('Fragment'),
     jsx: () => null,

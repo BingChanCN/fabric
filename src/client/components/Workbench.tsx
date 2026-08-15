@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { Component, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import {
   IconCheckOutline16, IconCloseOutline16, IconWarningOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
@@ -11,6 +11,68 @@ function NoticeIcon({ tone }: { tone: FabricNoticeTone }) {
   if (tone === 'success') return <IconCheckOutline16 size={16} />
   if (tone === 'warning' || tone === 'error') return <IconWarningOutline16 size={16} />
   return null
+}
+
+interface PageBoundaryProps {
+  pageId: string
+  errorLabel: string
+  retryLabel: string
+  children: ReactNode
+}
+
+interface PageBoundaryState {
+  failed: boolean
+}
+
+/** Isolates a downstream page crash so one bad plugin cannot take down the singleton workbench. */
+class PageBoundary extends Component<PageBoundaryProps, PageBoundaryState> {
+  state: PageBoundaryState = { failed: false }
+
+  static getDerivedStateFromError(): PageBoundaryState {
+    return { failed: true }
+  }
+
+  componentDidCatch(error: unknown): void {
+    console.error(`fabric: page "${this.props.pageId}" crashed`, error)
+  }
+
+  render(): ReactNode {
+    if (this.state.failed) {
+      return (
+        <div className={css.pageError} role="alert">
+          <span className={css.pageErrorHead}>
+            <IconWarningOutline16 size={16} />
+            <span>{this.props.errorLabel}</span>
+          </span>
+          <button
+            type="button"
+            className={css.pageErrorRetry}
+            onClick={() => { this.setState({ failed: false }) }}
+          >
+            {this.props.retryLabel}
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+/** Swallows a crashing toolbar action; the page header keeps working without it. */
+class SilentBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true }
+  }
+
+  componentDidCatch(error: unknown): void {
+    console.error('fabric: toolbar action crashed', error)
+  }
+
+  render(): ReactNode {
+    return this.state.failed ? null : this.props.children
+  }
 }
 
 /** Fabric's resident workbench, page router, extension overlay, and notice host. */
@@ -107,10 +169,12 @@ export function Workbench({
                 <h2 id={titleId} className={css.title}>{active?.label ?? t('empty.pages')}</h2>
               </div>
               <div className={css.headerActions}>
-                {renderSlot('fabric.toolbar.action', {
-                  ...owner,
-                  activePage: snapshot.activePage,
-                })}
+                <SilentBoundary>
+                  {renderSlot('fabric.toolbar.action', {
+                    ...owner,
+                    activePage: snapshot.activePage,
+                  })}
+                </SilentBoundary>
                 <button type="button" className={css.iconButton} aria-label={t('close')} onClick={closeFabric}>
                   <IconCloseOutline16 size={16} />
                 </button>
@@ -144,7 +208,9 @@ export function Workbench({
                   .filter(page => page.id === snapshot.activePage || (page.keepAlive !== false && visited.has(page.id)))
                   .map(page => (
                     <section key={page.id} className={css.page} hidden={page.id !== snapshot.activePage}>
-                      {renderSlot('fabric.page', owner, { only: page.id })}
+                      <PageBoundary pageId={page.id} errorLabel={t('page.error')} retryLabel={t('page.retry')}>
+                        {renderSlot('fabric.page', owner, { only: page.id })}
+                      </PageBoundary>
                     </section>
                   ))}
               </main>

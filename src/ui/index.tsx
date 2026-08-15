@@ -5,7 +5,7 @@ import type { AsyncResource, AsyncResourceSnapshot, Observable } from '../sdk/in
 import type {
   ConfigSnapshot, ConfigStore, FabricConfigField, FabricConfigSchema, JsonRecord,
 } from '../sdk/config.ts'
-import type { JsonValue } from '../sdk/http.ts'
+import type { JsonValue } from '../sdk/json.ts'
 import css from './ui.module.css'
 
 /** Z-Index layer contract matching framework elevation standards. */

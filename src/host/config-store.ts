@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { isConfigId } from '../sdk/config.ts'
 import type { JsonRecord } from '../sdk/config.ts'
-import type { JsonValue } from '../sdk/http.ts'
+import type { JsonValue } from '../sdk/json.ts'
 
 export interface HostConfigDocument {
   id: string

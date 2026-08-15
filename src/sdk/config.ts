@@ -1,5 +1,5 @@
 import { ObservableStore } from './observable.ts'
-import type { JsonClient, JsonValue } from './http.ts'
+import type { JsonValue } from './json.ts'
 
 export type JsonRecord = { readonly [key: string]: JsonValue }
 
@@ -144,11 +144,9 @@ export interface ConfigStoreOptions<T extends JsonRecord> {
   id: string
   schema: FabricConfigSchema
   defaults?: T
-  client?: Pick<JsonClient, 'get' | 'put'>
   resource?: ConfigResourceTransport
   cache?: ConfigCache
   debounceMs?: number
-  endpoint?: string
 }
 
 const CONFIG_ID = /^[A-Za-z][A-Za-z0-9._-]{0,63}$/u
@@ -235,11 +233,9 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
   readonly id: string
   readonly schema: FabricConfigSchema
   private readonly defaults: T
-  private readonly client: Pick<JsonClient, 'get' | 'put'> | undefined
   private readonly resource: ConfigResourceTransport | undefined
   private readonly cache: ConfigCache | undefined
   private readonly debounceMs: number
-  private readonly endpoint: string
   private snapshot: ConfigSnapshot<T>
   private persisted: T
   private readonly dirtyKeys = new Set<string>()
@@ -257,12 +253,9 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
       ...defaultsFromSchema(options.schema),
       ...(options.defaults ?? {}),
     } as T
-    this.client = options.client
     this.resource = options.resource
-    if (this.client !== undefined && this.resource !== undefined) throw new Error(`fabric config "${this.id}" cannot use two transports`)
     this.cache = options.cache
     this.debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS
-    this.endpoint = options.endpoint ?? '/fabric/config'
     const cached = this.cache?.read(this.id)
     const initialValues = {
       ...this.defaults,
@@ -308,7 +301,7 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
   }
 
   async load(): Promise<ConfigSnapshot<T>> {
-    if (this.client === undefined && this.resource === undefined) {
+    if (this.resource === undefined) {
       this.setSnapshot({ status: 'ready' })
       return this.snapshot
     }
@@ -318,9 +311,7 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
       error: undefined,
     })
     try {
-      const document = this.resource !== undefined
-        ? await this.resource.read(this.id, this.schema)
-        : parseDocument(this.id, await this.client!.get<unknown>(`${this.endpoint}/${this.id}`, { session: false })) ?? { id: this.id, seq: 0, values: {} }
+      const document = await this.resource.read(this.id, this.schema)
       if (generation !== this.generation) return this.snapshot
       this.applyRemote(document)
       this.setSnapshot({ status: 'ready', error: undefined })
@@ -364,7 +355,7 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
   }
 
   private schedulePersist(): void {
-    if ((this.client === undefined && this.resource === undefined) || this.dirtyKeys.size === 0) return
+    if (this.resource === undefined || this.dirtyKeys.size === 0) return
     if (this.persistTimer !== undefined) clearTimeout(this.persistTimer)
     this.persistTimer = setTimeout(() => {
       this.persistTimer = undefined
@@ -373,7 +364,7 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
   }
 
   private async flush(): Promise<void> {
-    if ((this.client === undefined && this.resource === undefined) || this.dirtyKeys.size === 0) return
+    if (this.resource === undefined || this.dirtyKeys.size === 0) return
     if (this.persistInFlight) {
       this.persistQueued = true
       return
@@ -391,13 +382,7 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
         const sentDirty = new Set(this.dirtyKeys)
         const sentSeq = this.snapshot.seq
         try {
-          const document = this.resource !== undefined
-            ? await this.resource.write(this.id, sentSeq, sentValues, this.schema)
-            : parseDocument(this.id, await this.client!.put<unknown>(`${this.endpoint}/${this.id}`, {
-              seq: sentSeq,
-              values: sentValues,
-            }, { session: false }))
-          if (document === undefined) throw new Error(`invalid config document from ${this.id}`)
+          const document = await this.resource.write(this.id, sentSeq, sentValues, this.schema)
           for (const key of sentDirty) {
             if (sameValue(this.snapshot.values[key] as JsonValue, sentValues[key] as JsonValue)) {
               this.dirtyKeys.delete(key)
@@ -440,8 +425,8 @@ export class ConfigStore<T extends JsonRecord = JsonRecord> extends ObservableSt
 
 function readConflict(error: unknown, id: string): ConfigDocument | undefined {
   if (error === null || typeof error !== 'object') return undefined
-  const value = error as { status?: unknown; code?: unknown; details?: unknown }
-  if (value.status !== 409 && value.code !== 'config-conflict') return undefined
+  const value = error as { code?: unknown; details?: unknown }
+  if (value.code !== 'config-conflict') return undefined
   return parseDocument(id, value.details)
 }
 

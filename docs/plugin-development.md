@@ -1,6 +1,6 @@
 # Fabric 插件开发
 
-基线：DSH `0.1.0-rc.6`、Fabric `0.5.0`、`tsdown 0.22.2`。
+基线：DSH `0.1.0-rc.6`、Fabric `0.6.0`、`tsdown 0.22.2`。
 
 最快路径：
 
@@ -19,9 +19,9 @@ npx create-fabric-plugin my-plugin
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },
     "client": { "inject": ["@dsh-do/fabric"], "platform": "web" },
-    "dependencies": { "@dsh-do/fabric": "^0.5.0" }
+    "dependencies": { "@dsh-do/fabric": "^0.6.0" }
   },
-  "peerDependencies": { "@dsh-do/fabric": "^0.5.0", "react": "^18.2.0" }
+  "peerDependencies": { "@dsh-do/fabric": "^0.6.0", "react": "^18.2.0" }
 }
 ```
 

@@ -50,9 +50,13 @@ try {
   await mkdir(unpacked)
   const archive = join(temporary, archives[0])
   const tarPath = path => process.platform === 'win32' ? path.replaceAll('\\', '/') : path
-  const tarArgs = process.platform === 'win32'
+  // GNU tar needs --force-local for drive-letter paths; Windows' bundled
+  // bsdtar (libarchive) rejects that option entirely.
+  const tarProbe = spawnSync('tar', ['--version'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+  const isGnuTar = /GNU tar/iu.test(tarProbe.stdout ?? '')
+  const tarArgs = isGnuTar
     ? ['--force-local', '-xzf', tarPath(archive), '-C', tarPath(unpacked)]
-    : ['-xzf', archive, '-C', unpacked]
+    : ['-xzf', tarPath(archive), '-C', tarPath(unpacked)]
   run('tar', tarArgs)
 
   const packageRoot = join(unpacked, 'package')

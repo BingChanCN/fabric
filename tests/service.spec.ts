@@ -12,7 +12,12 @@ import { FabricConfigRegistry } from '../src/client/config-registry.ts'
 import { FabricController } from '../src/client/controller.ts'
 import { FabricRuntimeService } from '../src/client/service.ts'
 import { FabricThemeManager } from '../src/client/theme.ts'
-import { createJsonClient } from '../src/sdk/http.ts'
+import type { ConfigResourceTransport } from '../src/sdk/config.ts'
+
+const resourceTransport: ConfigResourceTransport = {
+  read: async id => ({ id, seq: 0, values: {} }),
+  write: async (id, seq, values) => ({ id, seq: seq + 1, values }),
+}
 
 type RuntimeExports = {
   SlotRegistry: new (ctx: Context) => SlotRegistryInstance
@@ -95,12 +100,7 @@ async function bootFabric(declareSlots: boolean): Promise<{
     name: 'fabric-service-test',
     inject: ['slots'],
     apply: (pluginCtx: Context) => {
-      const configs = new FabricConfigRegistry(createJsonClient({
-        fetch: async () => new Response(JSON.stringify({ id: 'x', seq: 0, values: {} }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-      }))
+      const configs = new FabricConfigRegistry(resourceTransport)
       const commands = new FabricCommandRegistry()
       const capabilities = new FabricCapabilityRegistry()
       pluginCtx.effect(() => () => {

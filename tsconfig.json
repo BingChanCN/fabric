@@ -25,5 +25,5 @@
     "tsdown.config.ts",
     "vitest.config.ts"
   ],
-  "exclude": ["lib", "examples"]
+  "exclude": ["lib", "examples", "tests/types-probe"]
 }

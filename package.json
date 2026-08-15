@@ -1,6 +1,6 @@
 {
   "name": "@dsh-do/fabric",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "Composable frontend framework for DeepSeek Harness plugins",
   "type": "module",
   "author": "BingChanCN",
@@ -73,10 +73,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run test && npm run build && npm run build:example && npm run client:check && npm run pack:check && npm run create:check && npm run profile:check",
+    "verify": "npm run test && npm run build && npm run build:example && npm run client:check && npm run pack:check && npm run create:check && npm run types:check && npm run profile:check",
+    "verify:ci": "npm run test && npm run build && npm run build:example && npm run client:check && npm run pack:check && npm run create:check && npm run types:check",
+    "prepublishOnly": "npm run verify",
     "create:check": "node scripts/check-create.mjs",
     "client:check": "node scripts/check-client-bundles.mjs",
     "pack:check": "node scripts/check-pack.mjs",
+    "types:check": "node scripts/check-types.mjs",
     "profile:check": "node scripts/check-dsh-profile.mjs"
   },
   "peerDependencies": {
@@ -129,6 +132,7 @@
     "docs",
     "cordis.patch.yml",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "keywords": [
