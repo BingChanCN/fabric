@@ -98,4 +98,15 @@ describe('FabricController', () => {
     expect(() => { controller.notify('bad', { timeoutMs: -1 }) }).toThrow('finite non-negative')
     expect(controller.getSnapshot().notices).toEqual([])
   })
+
+  it('retracts only notices owned by an unloaded runtime package', () => {
+    const controller = new FabricController(new MutableCatalog([]))
+    controller.notify('alpha', { timeoutMs: 0 }, '@example/alpha')
+    controller.notify('beta', { timeoutMs: 0 }, '@example/beta')
+    controller.notify('runtime', { timeoutMs: 0 })
+
+    controller.dismissNoticesByOwner('@example/alpha')
+    expect(controller.getSnapshot().notices.map(notice => notice.message)).toEqual(['beta', 'runtime'])
+    controller.dispose()
+  })
 })

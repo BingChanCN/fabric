@@ -1,110 +1,101 @@
 # Fabric
 
-> DSH 插件与 DeepSeek Harness 之间的兼容性隔离层。下游业务只依赖 Fabric 公共 API；DSH 破坏性变化由新版 Fabric 吸收。
+Fabric 是 DSH 的 Runtime Plugin 内核和下游 SDK。`@dsh-do/fabric` 是每个 Profile 唯一需要进入 DSH boot graph 的静态基础插件；业务插件由 Fabric 按 Profile 安装、启停、升级和卸载，安装后无需重启 DSH。
 
-当前兼容基线：`@deepseek-ai/dsh@0.1.0-rc.6`。Fabric **0.7.0** 在每个 Profile 只加载一份 `@dsh-do/fabric` 单例 runtime，并提供页面工作单元、受作用域管理的 dialog 与 HUD。
+当前基线：Fabric `1.0.0`、`@deepseek-ai/dsh@0.1.0-rc.6`。
 
----
+## 安装
 
-## 快速开始
-
-```sh
-npx create-fabric-plugin my-plugin
-# 或 scoped：
-npx create-fabric-plugin @dsh-do/my-plugin
-cd my-plugin
-pnpm install
-pnpm build
-dsh plugin --profile web add "$(pwd)"
-```
-
-先安装 Fabric 自身：
+先安装 Core，并完成这一次计划内重启：
 
 ```sh
 dsh plugin --profile web add @dsh-do/fabric
 ```
 
----
+此后在 Fabric 的 Mods 页面或 dsh-do 插件市场安装 Runtime Package，例如：
 
-## 公共编程模型
-
-业务文件不接触 Cordis、`ClientContext`、`--dsw-*` 或 DSH slot。客户端导出一个定义，构建预设生成 bootstrap：
-
-```tsx
-import { defineClientPlugin } from '@dsh-do/fabric/client'
-import { Page, PageHeader } from '@dsh-do/fabric/ui'
-
-export default defineClientPlugin({
-  descriptor: { name: 'Jobs' },
-  setup(ctx) {
-    const preferences = ctx.config.define({
-      id: 'preferences',
-      title: 'Jobs',
-      schema: {
-        pollMs: { type: 'number', title: 'Refresh interval', default: 4000, min: 500 },
-      },
-    })
-    ctx.pages.define({
-      id: 'home',
-      label: 'Jobs',
-      icon: '💼',
-      keepAlive: true,
-      config: [preferences],
-      view: JobsPage,
-      actions: [{
-        id: 'refresh',
-        label: 'Refresh',
-        icon: '↻',
-        onClick: async ({ signal, dialogs }) => {
-          await refreshJobs(signal)
-          dialogs.open({ id: 'done', title: 'Jobs', content: 'Refresh complete.' })
-        },
-      }],
-    })
-    ctx.commands.define({
-      id: 'open',
-      title: 'Open Jobs',
-      shortcut: 'Mod+Shift+J',
-      run: () => { ctx.open('home') },
-    })
-  },
-})
+```text
+hello-fabric
+@dsh-do/fabric-theme-studio
+file:D:/work/my-plugin
 ```
 
-Host 半部同样只见 Fabric：
+Runtime Package 不写入 DSH profile bundle，也没有 `cordis.patch.yml`。安装、升级、停用、回退和删除会同步到当前 Profile 的所有浏览器标签页。
+
+## 创建插件
+
+```sh
+npx create-fabric-plugin @example/jobs
+cd jobs
+pnpm install
+pnpm build
+fabric verify
+fabric dev --profile web
+```
+
+`fabric dev` 使用临时 overlay：成功构建会完整热换 Host 与每个标签页的 Client；构建或 Host 激活失败时保留上一个成功 generation；CLI 退出或连接断开后恢复已安装的 production 版本。它不会修改 `plugins.json` 或 current/previous 版本槽。
+
+Runtime manifest 位于 `package.json`：
+
+```json
+{
+  "name": "@example/jobs",
+  "version": "1.0.0",
+  "type": "module",
+  "fabric": {
+    "format": 1,
+    "api": "^1.0.0",
+    "host": "./lib/fabric-host.js",
+    "client": "./lib/fabric-client.js",
+    "contracts": "./lib/contracts.js"
+  }
+}
+```
+
+Host 或 Client 至少提供一个。普通依赖在构建时进入对应 bundle；Runtime 插件之间不做运行时 npm import，协作使用 Capability、Resource 或 Operation。
+
+## 编程模型
+
+- Host 默认导出 `defineHostPlugin(...)`，只接收窄的 Fabric Host Context。
+- Client 默认导出 `defineClientPlugin(...)`，注册 Page、Dialog、Command、HUD、Config 和 Capability。
+- Host/Client 数据交换只走带 `{ owner, id, exact version }` 身份的 typed Resource 或 Operation。
+- Config、Document、Blob 存在当前 Profile 的 `.fabric/data/<canonical-package>/`；Credential 复用 DSH provider，Client 永远读不到明文。
+- Runtime Package 是可信本机代码，不是安全沙箱。安装界面会显示来源、包名、版本和执行本机代码提示。
+
+最小构建配置：
 
 ```ts
-import { defineHostPlugin, mountHostPlugin } from '@dsh-do/fabric'
+import { fabricRuntimePackage } from '@dsh-do/fabric/build'
 
-const definition = defineHostPlugin({
-  descriptor: { name: 'Jobs' },
-  setup({ resources }) {
-    resources.provide(jobsResource, {
-      query: request => listJobs(request),
-    })
-  },
-})
-
-export const { inject, apply } = mountHostPlugin('@dsh-do/jobs', '0.1.0', definition)
+export default fabricRuntimePackage()
 ```
 
----
+## 作者命令
+
+```sh
+fabric create @example/jobs
+fabric build
+fabric test
+fabric verify
+fabric dev --profile web
+fabric pack
+```
+
+`verify` 与 Core 安装器调用同一个 package validator。`pack` 先验证工作目录，执行真实 `npm pack`，再验证最终 tgz。
 
 ## 文档
 
 | 专题 | 内容 |
 |---|---|
-| [插件开发](docs/plugin-development.md) | define/setup、Page、构建与安装 |
-| [脚手架](docs/cli.md) | `create-fabric-plugin` |
-| [组件](docs/components.md) | Page / Modal / tokens |
-| [Page action 与 Dialog](docs/page-actions-and-dialogs.md) | 声明式 action、动态 badge、dialog scope 与 HUD |
-| [配置](docs/configuration.md) | typed config handle + Resource 持久化 |
+| [插件开发](docs/plugin-development.md) | Runtime manifest、Host/Client、Resource 与构建 |
+| [CLI](docs/cli.md) | create/build/test/verify/dev/pack |
+| [组件](docs/components.md) | Page、Modal 与 tokens |
+| [Page action 与 Dialog](docs/page-actions-and-dialogs.md) | action、dialog scope 与 HUD |
+| [配置](docs/configuration.md) | typed Config |
 | [主题](docs/theming.md) | `--fabric-*` 语义主题 |
-| [命令与 Capability](docs/commands-and-capabilities.md) | 命令面板与跨插件服务 |
-| [架构](docs/architecture.md) | 单例 runtime 与兼容边界 |
-| [API](docs/api-reference.md) | 公共类型 |
-
----
+| [命令与 Capability](docs/commands-and-capabilities.md) | 命令面板与跨插件协作 |
+| [架构](docs/architecture.md) | Core 单例、Runtime lifecycle 与边界 |
+| [API](docs/api-reference.md) | 公共入口与类型 |
 
 ## 验证
 
@@ -112,4 +103,4 @@ export const { inject, apply } = mountHostPlugin('@dsh-do/jobs', '0.1.0', defini
 pnpm verify
 ```
 
-`verify` 覆盖类型检查、单元测试、Fabric 与 hello-fabric 构建、ModuleLoader 闭包、tarball 契约、脚手架和真实 DSH profile 安装。
+本地闸门覆盖单元/类型/构建、真实 tgz admission，以及干净 DSH Profile 中的 dsh-do 安装、双标签页热装卸、更新/回退、失败恢复、`fabric dev`、Theme Studio、Blob 和 DSH 重启恢复。Linux 与 Windows 的完整 release gate 可从 GitHub Actions 手动触发。

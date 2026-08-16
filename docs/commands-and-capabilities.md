@@ -2,7 +2,7 @@
 
 ## 页面 action 与全局 command
 
-页面 action 属于当前页面：放在 header，可依赖页面状态，默认不进命令面板、不占全局快捷键。
+页面 action 属于页面实例，可依赖页面状态；Promise pending、AbortSignal 和异常通知由 Fabric 管理。复杂交互使用 `render`，不能同时声明 `render` 与 `onClick`。
 
 ```ts
 ctx.pages.define({
@@ -12,7 +12,6 @@ ctx.pages.define({
   actions: [{
     id: 'refresh',
     label: 'Refresh',
-    icon: '↻',
     onClick: async ({ signal, notify }) => {
       await refreshJobs(signal)
       notify('Refreshed', { tone: 'success' })
@@ -21,34 +20,37 @@ ctx.pages.define({
 })
 ```
 
-Promise 未完成时按钮自动进入 pending 并禁止重复点击；异常自动进入通知通道，切页或卸载会 abort `signal`。需要 Dropdown 等复杂交互时改用 `{ id, label, render: CustomAction }`，不能同时声明 `render` 与 `onClick`。
-
-全局 command 属于插件 runtime：进 `Mod+K` 面板，可绑快捷键，不依赖页面实例。
+全局 command 进入命令面板，可绑定快捷键：
 
 ```ts
 ctx.commands.define({
   id: 'open',
   title: 'Open Jobs',
   shortcut: 'Mod+Shift+J',
-  run: (signal) => { ctx.open('home') },
+  run: () => { ctx.open('home') },
 })
 ```
-
-`Mod` 在 Windows/Linux 是 Ctrl，在 macOS 是 ⌘。异步由 Fabric 管理 pending / cancel；`signal` 在卸载时 abort。
 
 ## Capability
 
-Capability 是同运行时的 typed/versioned 服务，不是 UI 扩展点。
+Capability 是同一运行环境内的 typed/versioned 直接协作，不跨 Host/Client 传值。
 
 ```ts
-ctx.capabilities.provide({
+import { defineCapability } from '@dsh-do/fabric/contracts'
+
+export const jobsCapability = defineCapability<{ refresh(): void }>({
+  owner: '@example/jobs',
   id: 'jobs-api',
   version: '1',
-  implementation: { refresh: () => {} },
+  side: 'client',
 })
 
-const api = ctx.capabilities.require<{ refresh: () => void }>('jobs-api', '1')
-api.refresh()
+ctx.capabilities.provide(jobsCapability, { refresh: () => {} })
+const binding = ctx.capabilities.consume(jobsCapability)
+const snapshot = binding.getSnapshot()
+if (snapshot.status === 'available') snapshot.implementation.refresh()
 ```
 
-Host 对象不能直接交给 Client。跨边界数据走 Resource。provider 卸载后 handle 失效。
+binding 可订阅 `available | unavailable | incompatible`。provider 卸载时 Fabric 先 revoke 旧 implementation proxy，再发布 unavailable；即使 consumer 缓存了旧 proxy，后续调用也会立即失败。consumer 卸载时调用 `binding.dispose()`，插件 Context 也会自动回收其 binding。
+
+Host Capability 与 Client Capability 分属独立 registry。跨进程数据走 Resource，长任务走 Operation。

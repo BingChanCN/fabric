@@ -5,12 +5,14 @@ export type FabricConfigValues = JsonRecord
 
 export interface FabricConfigReadRequest {
   readonly operation: 'read'
+  readonly owner: string
   readonly id: string
   readonly schema: FabricConfigSchema
 }
 
 export interface FabricConfigWriteRequest {
   readonly operation: 'write'
+  readonly owner: string
   readonly id: string
   readonly seq: number
   readonly values: FabricConfigValues
@@ -38,13 +40,15 @@ const valuesCodec = defineCodec<FabricConfigValues>(value => {
 export const configRequestCodec = defineCodec<FabricConfigRequest>(value => {
   const item = record(value, 'config request')
   if (item.operation === 'read') {
+    if (typeof item.owner !== 'string' || item.owner.trim() === '') throw new Error('config owner must be a non-empty string')
     if (typeof item.id !== 'string' || item.id.trim() === '') throw new Error('config id must be a non-empty string')
-    return { operation: 'read', id: item.id, schema: parseConfigSchema(item.schema) }
+    return { operation: 'read', owner: item.owner, id: item.id, schema: parseConfigSchema(item.schema) }
   }
   if (item.operation === 'write') {
+    if (typeof item.owner !== 'string' || item.owner.trim() === '') throw new Error('config owner must be a non-empty string')
     if (typeof item.id !== 'string' || item.id.trim() === '') throw new Error('config id must be a non-empty string')
     if (typeof item.seq !== 'number' || !Number.isFinite(item.seq) || item.seq < 0) throw new Error('config seq must be non-negative')
-    return { operation: 'write', id: item.id, seq: item.seq, values: valuesCodec.parse(item.values), schema: parseConfigSchema(item.schema) }
+    return { operation: 'write', owner: item.owner, id: item.id, seq: item.seq, values: valuesCodec.parse(item.values), schema: parseConfigSchema(item.schema) }
   }
   throw new Error('config operation must be read or write')
 })
@@ -58,6 +62,7 @@ export const configDocumentCodec = defineCodec<FabricConfigDocument>(value => {
 })
 
 export const fabricConfigResource = defineResource<FabricConfigRequest, FabricConfigDocument>({
+  owner: '@dsh-do/fabric',
   id: 'config',
   version: '1',
   scope: 'profile',

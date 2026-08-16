@@ -16,8 +16,10 @@ export declare const FABRIC_CLIENT_EXTERNALS: readonly [
   '@deepseek-ai/dsh-client-runtime/client',
 ]
 
+export declare const FABRIC_RUNTIME_CLIENT_EXTERNALS: readonly ['@dsh-do/fabric', 'react', 'react/jsx-runtime']
+
 export interface FabricClientBuildOptions {
-  /** Package name used by the DSH module table. Must equal package.json name. */
+  /** Package name used by the DSH module table and style ownership. */
   id?: string
   /** Browser definition entry. Generated bootstrap imports its default export. */
   entry?: string
@@ -25,16 +27,26 @@ export interface FabricClientBuildOptions {
   runtime?: boolean
   outDir?: string
   external?: readonly string[]
+  moduleId?: string
+  runtimePackage?: boolean
+  fileName?: string
   sourcemap?: boolean
-}
-
-export interface FabricPluginBuildOptions extends FabricClientBuildOptions {
-  hostEntry?: string | false
-  hostTarget?: string
 }
 
 /** Build one precompiled DSH browser half. Downstream bundles consume `@dsh-do/fabric`. */
 export declare function fabricClient(options?: FabricClientBuildOptions): UserConfig
 
-/** Build conventional Node and browser halves for a Fabric-aware DSH plugin. */
-export declare function fabricPlugin(options?: FabricPluginBuildOptions): UserConfig[]
+export interface FabricRuntimePackageBuildOptions {
+  hostEntry?: string | false
+  clientEntry?: string | false
+  id?: string
+  outDir?: string
+  hostTarget?: string
+  clientTarget?: string
+  clientExternal?: readonly string[]
+  contractsEntry?: string | false
+  sourcemap?: boolean
+}
+
+/** Build the hot-loadable Fabric Runtime Package format. */
+export declare function fabricRuntimePackage(options?: FabricRuntimePackageBuildOptions): UserConfig[]

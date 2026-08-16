@@ -7,7 +7,7 @@
 import type { ReactNode } from 'react'
 import { createElement } from 'react'
 import {
-  defineClientPlugin, defineCodec, defineResource, FabricResourceError, jsonCodec,
+  defineCapability, defineClientPlugin, defineCodec, defineCredential, defineOperation, defineResource, FabricResourceError, jsonCodec,
   type FabricClientPluginContext, type FabricConfigHandle, type FabricPageProps,
   type FabricResourceClient, type FabricThemeDefinition, type JsonRecord, type JsonValue,
 } from '@dsh-do/fabric/client'
@@ -16,9 +16,12 @@ import {
   FABRIC_RESOURCE_PREFIX, mountHostPlugin,
   type FabricHostPluginContext, type FabricPluginResourceHost,
 } from '@dsh-do/fabric'
+import { defineCapability as defineContractCapability, defineResource as defineContractResource } from '@dsh-do/fabric/contracts'
 import { createAsyncResource, type AsyncResource, type ConfigStore, type EventStream, type FabricConfigSchema, type JsonValue as SdkJsonValue, type Observable } from '@dsh-do/fabric/sdk'
 import { Badge, ErrorState, Modal, Page, useFabricConfig, Z_INDEX, type BadgeTone } from '@dsh-do/fabric/ui'
-import { fabricClient, fabricPlugin, type FabricPluginBuildOptions } from '@dsh-do/fabric/build'
+import { fabricClient, fabricRuntimePackage, type FabricClientBuildOptions } from '@dsh-do/fabric/build'
+// @ts-expect-error the 0.x static profile-bundle preset was removed in Fabric 1.0
+import { fabricPlugin } from '@dsh-do/fabric/build'
 import { parseCreateArgs, scaffoldPlugin } from '@dsh-do/fabric/create'
 
 // --- removed public API must stay removed ---
@@ -34,7 +37,19 @@ interface PingRequest { readonly n: number }
 interface PingResponse { readonly doubled: number }
 
 const pingCodec = defineCodec<PingRequest>(value => ({ n: Number((value as PingRequest).n) }))
+void defineContractCapability
+void defineContractResource
+const pingCapability = defineCapability<{ ping(): number }>({
+  owner: '@example/probe', id: 'api', version: '1', side: 'client',
+})
+const apiKey = defineCredential({
+  owner: '@example/probe', id: 'api-key', version: '1', ref: 'EXAMPLE_API_KEY',
+})
+const pingOperation = defineOperation<PingRequest, PingResponse>({
+  owner: '@example/probe', id: 'ping', version: '1', input: pingCodec, result: jsonCodec as never,
+})
 const pingResource = defineResource<PingRequest, PingResponse>({
+  owner: '@example/probe',
   id: 'ping',
   version: '1',
   scope: 'profile',
@@ -66,9 +81,13 @@ const definition = defineClientPlugin({
     page.setBadge(1)
     ctx.dialogs.open({ id: 'welcome', title: 'Welcome', content: 'Hello' }).close()
     ctx.commands.define({ id: 'open', title: 'Open', run: () => {} })
+    ctx.capabilities.provide(pingCapability, { ping: () => 1 })
+    const api = ctx.capabilities.consume(pingCapability)
+    void api.getSnapshot().value?.ping()
+    void ctx.credentials.describe(apiKey)
+    void ctx.operations.start(pingOperation, { n: 1 })
+    // @ts-expect-error legacy inline capability implementations were removed in 1.0
     ctx.capabilities.provide({ id: 'api', version: '1', implementation: { ping: () => 1 } })
-    const api = ctx.capabilities.require<{ ping(): number }>('api', '1')
-    void api.ping()
     ctx.hud.define({ id: 'hud', component: () => null })
     // @ts-expect-error overlays was replaced by the narrow hud API in 0.7
     ctx.overlays.define({ id: 'legacy', component: () => null })
@@ -136,8 +155,9 @@ const record: JsonRecord = { enabled: true }
 void record
 
 // --- build & create ---
-const buildOptions: FabricPluginBuildOptions = { id: 'probe' }
+const buildOptions: FabricClientBuildOptions = { id: 'probe' }
 void fabricClient(buildOptions)
-void fabricPlugin(buildOptions)
+void fabricRuntimePackage({ id: 'probe' })
+void fabricPlugin
 void parseCreateArgs(['--name', 'probe-plugin'])
 void scaffoldPlugin({ directory: '.', name: 'probe-plugin' })

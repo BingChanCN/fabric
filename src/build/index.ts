@@ -1,8 +1,9 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, dirname, resolve } from 'node:path'
 import type { UserConfig } from 'tsdown/config'
 import { transform } from 'lightningcss'
+import { runtimeModuleId } from '../runtime/manifest.ts'
 
 /** Module-table entries supplied by the DSH web shell. */
 export const FABRIC_CLIENT_EXTERNALS = [
@@ -20,6 +21,12 @@ export const FABRIC_CLIENT_EXTERNALS = [
   '@deepseek-ai/dsh-client-runtime/client',
 ] as const
 
+export const FABRIC_RUNTIME_CLIENT_EXTERNALS = [
+  '@dsh-do/fabric',
+  'react',
+  'react/jsx-runtime',
+] as const
+
 export interface FabricClientBuildOptions {
   /** Package name used by the DSH module table and style ownership. Defaults to package.json name. */
   id?: string
@@ -31,15 +38,14 @@ export interface FabricClientBuildOptions {
   outDir?: string
   /** Additional DSH module-table entries that must remain external. */
   external?: readonly string[]
+  /** Stable module-table id for a dynamically managed Runtime Package. */
+  moduleId?: string
+  /** Use the narrow Runtime Package external boundary instead of the legacy DSH bundle boundary. */
+  runtimePackage?: boolean
+  /** Output browser filename. @default "client.js" */
+  fileName?: string
   /** Emit a browser sourcemap. @default true */
   sourcemap?: boolean
-}
-
-export interface FabricPluginBuildOptions extends FabricClientBuildOptions {
-  /** Node-side Cordis entry. Set false for a client-only package. @default "src/index.ts" */
-  hostEntry?: string | false
-  /** Node compilation target. @default "node22" */
-  hostTarget?: string
 }
 
 type WatchContext = { addWatchFile(file: string): void }
@@ -118,7 +124,11 @@ export function fabricClient(options: FabricClientBuildOptions = {}): UserConfig
   const metadata = packageMetadata()
   const id = requirePluginId(options.id)
   const version = metadata.version
-  const external = unique([...FABRIC_CLIENT_EXTERNALS, ...(options.external ?? [])])
+  const moduleId = options.moduleId ?? id
+  const external = unique([
+    ...(options.runtimePackage === true ? FABRIC_RUNTIME_CLIENT_EXTERNALS : FABRIC_CLIENT_EXTERNALS),
+    ...(options.external ?? []),
+  ])
   const sourceEntry = resolve(process.cwd(), options.entry ?? 'src/client/index.ts')
   const bootstrapId = `\0fabric-bootstrap:${id}`
   const bootstrap = {
@@ -129,6 +139,16 @@ export function fabricClient(options: FabricClientBuildOptions = {}): UserConfig
     load(source: string) {
       if (source !== bootstrapId) return null
       if (options.runtime === true) return null
+      if (options.runtimePackage === true) {
+        return [
+          `import definition from ${JSON.stringify(sourceEntry)};`,
+          `import { mountClientPlugin } from '@dsh-do/fabric';`,
+          `export const inject = ['fabric'];`,
+          `export function apply(ctx, config) {`,
+          `  return mountClientPlugin(${JSON.stringify(id)}, ${JSON.stringify(version)}, definition, config?.fabricRuntime).apply(ctx);`,
+          `}`,
+        ].join('\n')
+      }
       return [
         `import definition from ${JSON.stringify(sourceEntry)};`,
         `import { mountClientPlugin } from '@dsh-do/fabric';`,
@@ -166,38 +186,97 @@ export function fabricClient(options: FabricClientBuildOptions = {}): UserConfig
         }
         return null
       },
-    }, cssModules(id)],
+    }, cssModules(moduleId)],
     outputOptions: {
-      entryFileNames: 'client.js',
-      banner: `window.__ModuleLoader__.load({ id: ${JSON.stringify(id)}, factory: (require) => {`,
+      codeSplitting: false,
+      entryFileNames: options.fileName ?? 'client.js',
+      banner: `window.__ModuleLoader__.load({ id: ${JSON.stringify(moduleId)}, factory: (require) => {`,
       intro: 'var module = { exports: {} }; var exports = module.exports;',
       footer: 'return module.exports; } });',
     },
   }
 }
 
-/** Build the conventional Node and browser halves of a Fabric-aware DSH plugin. */
-export function fabricPlugin(options: FabricPluginBuildOptions = {}): UserConfig[] {
+export interface FabricRuntimePackageBuildOptions {
+  /** Node-side Runtime Package definition entry. Set false for client-only packages. */
+  hostEntry?: string | false
+  /** Browser-side Runtime Package definition entry. Set false for host-only packages. */
+  clientEntry?: string | false
+  /** Package name. Defaults to package.json name. */
+  id?: string
+  /** Artifact directory. @default "lib" */
+  outDir?: string
+  /** Node compilation target. @default "node22" */
+  hostTarget?: string
+  /** Browser target. @default "es2022" */
+  clientTarget?: string
+  /** Additional browser externals. */
+  clientExternal?: readonly string[]
+  /** Pure contract entry. Defaults to src/contracts.ts when present. */
+  contractsEntry?: string | false
+  /** Emit sourcemaps. @default true */
+  sourcemap?: boolean
+}
+
+/**
+ * Build the hot-loadable Fabric Runtime Package format. This preset emits no
+ * DSH bundle metadata and never keeps private DSH
+ * modules external in the client artifact.
+ */
+export function fabricRuntimePackage(options: FabricRuntimePackageBuildOptions = {}): UserConfig[] {
   const id = requirePluginId(options.id)
-  const client = fabricClient({
-    id,
-    ...(options.entry === undefined ? {} : { entry: options.entry }),
-    ...(options.outDir === undefined ? {} : { outDir: options.outDir }),
-    ...(options.external === undefined ? {} : { external: options.external }),
-    ...(options.sourcemap === undefined ? {} : { sourcemap: options.sourcemap }),
-  })
-  if (options.hostEntry === false) return [client]
-  return [{
-    name: id,
-    entry: { index: options.hostEntry ?? 'src/index.ts' },
-    outDir: options.outDir ?? 'lib',
-    format: 'esm',
-    platform: 'node',
-    target: options.hostTarget ?? 'node22',
-    dts: false,
-    sourcemap: options.sourcemap ?? true,
-    clean: false,
-    deps: { neverBundle: [/^@deepseek-ai\//, '@dsh-do/fabric'] },
-    outputOptions: { entryFileNames: '[name].js' },
-  }, client]
+  const outDir = options.outDir ?? 'lib'
+  const sourcemap = options.sourcemap ?? true
+  const configs: UserConfig[] = []
+  if (options.hostEntry !== false) {
+    configs.push({
+      name: `${id}/fabric-host`,
+      entry: { 'fabric-host': options.hostEntry ?? 'src/host.ts' },
+      outDir,
+      format: 'esm',
+      platform: 'node',
+      target: options.hostTarget ?? 'node22',
+      dts: false,
+      sourcemap,
+      clean: false,
+      deps: {
+        neverBundle: [/^node:/],
+        alwaysBundle: (source: string) => !source.startsWith('node:'),
+      },
+      outputOptions: { codeSplitting: false, entryFileNames: '[name].js' },
+    })
+  }
+  if (options.clientEntry !== false) {
+    configs.push(fabricClient({
+      id,
+      entry: options.clientEntry ?? 'src/client/index.ts',
+      outDir,
+      moduleId: runtimeModuleId(id),
+      runtimePackage: true,
+      fileName: 'fabric-client.js',
+      ...(options.clientExternal === undefined ? {} : { external: options.clientExternal }),
+      sourcemap,
+    }))
+  }
+  const defaultContractsEntry = 'src/contracts.ts'
+  const contractsEntry = options.contractsEntry === false
+    ? undefined
+    : options.contractsEntry ?? (existsSync(resolve(process.cwd(), defaultContractsEntry)) ? defaultContractsEntry : undefined)
+  if (contractsEntry !== undefined) {
+    configs.push({
+      name: `${id}/contracts`,
+      entry: { contracts: contractsEntry },
+      outDir,
+      format: 'esm',
+      platform: 'neutral',
+      target: 'es2022',
+      dts: true,
+      sourcemap,
+      clean: false,
+      deps: { neverBundle: ['@dsh-do/fabric', /^@dsh-do\/fabric\//] },
+      outputOptions: { codeSplitting: false, entryFileNames: '[name].js' },
+    })
+  }
+  if (configs.length === 0) throw new Error('fabric runtime package must provide a host or client entry')
+  return configs
 }

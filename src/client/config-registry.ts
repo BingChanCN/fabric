@@ -2,14 +2,16 @@ import {
   ConfigStore, createConfigStore, createLocalStorageCache, installConfigRuntime,
 } from '../sdk/config.ts'
 import type {
-  FabricConfigRecord, FabricConfigRuntime, FabricConfigRuntimeSnapshot,
-  ConfigResourceTransport, FabricConfigSchema, FabricModRecord, FabricPageRecord, FabricThemeRecord,
+  ConfigDocument, FabricConfigRecord, FabricConfigRuntime, FabricConfigRuntimeSnapshot,
+  ConfigResourceTransport, FabricConfigSchema, FabricModRecord, FabricPageRecord, FabricThemeRecord, JsonRecord,
 } from '../sdk/config.ts'
 import type { Observable } from '../sdk/observable.ts'
 
 export interface FabricConfigDefinition {
   id: string
   title: string
+  owner?: string
+  documentId?: string
   schema: FabricConfigSchema
   description?: string
   pluginId?: string
@@ -32,6 +34,11 @@ export interface FabricThemeDefinition {
   priority?: number
 }
 
+export interface FabricNamespacedConfigTransport {
+  read(owner: string, id: string, schema: FabricConfigSchema): Promise<ConfigDocument>
+  write(owner: string, id: string, seq: number, values: JsonRecord, schema: FabricConfigSchema): Promise<ConfigDocument>
+}
+
 /** In-memory catalog of mods, schema-driven configs, and theme contributions. */
 export class FabricConfigRegistry implements FabricConfigRuntime, Observable<FabricConfigRuntimeSnapshot> {
   private snapshot: FabricConfigRuntimeSnapshot = Object.freeze({
@@ -48,7 +55,7 @@ export class FabricConfigRegistry implements FabricConfigRuntime, Observable<Fab
   private readonly themeRecords = new Map<string, FabricThemeRecord>()
   private pages: readonly FabricPageRecord[] = Object.freeze([])
 
-  constructor(private readonly transport: ConfigResourceTransport) {
+  constructor(private readonly transport: FabricNamespacedConfigTransport) {
     installConfigRuntime(this)
   }
 
@@ -83,10 +90,16 @@ export class FabricConfigRegistry implements FabricConfigRuntime, Observable<Fab
       ...(definition.description !== undefined ? { description: definition.description } : {}),
       ...(definition.pluginId !== undefined ? { pluginId: definition.pluginId } : {}),
     })
+    const owner = definition.owner ?? definition.pluginId ?? 'fabric'
+    const documentId = definition.documentId ?? definition.id
+    const resource: ConfigResourceTransport = {
+      read: (_id, schema) => this.transport.read(owner, documentId, schema),
+      write: (_id, seq, values, schema) => this.transport.write(owner, documentId, seq, values, schema),
+    }
     const store = createConfigStore({
       id: definition.id,
       schema: definition.schema,
-      resource: this.transport,
+      resource,
       cache: createLocalStorageCache(),
     })
     this.configRecords.set(definition.id, record)

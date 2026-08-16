@@ -15,6 +15,7 @@
       "@dsh-do/fabric": ["types/index.d.ts"],
       "@dsh-do/fabric/client": ["types/client.d.ts"],
       "@dsh-do/fabric/host": ["types/host.d.ts"],
+      "@dsh-do/fabric/contracts": ["types/contracts.d.ts"],
       "@dsh-do/fabric/sdk": ["types/sdk.d.ts"],
       "@dsh-do/fabric/ui": ["types/ui.d.ts"],
       "@dsh-do/fabric/build": ["types/build.d.ts"],

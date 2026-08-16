@@ -109,7 +109,7 @@ export class FabricController {
     this.update({ open: true, activePage: this.requirePage(pageId) })
   }
 
-  notify(message: string, options: FabricNoticeOptions = {}): () => void {
+  notify(message: string, options: FabricNoticeOptions = {}, owner?: string): () => void {
     const text = message.trim()
     if (text === '') throw new Error('fabric notice message must not be empty')
     const id = `fabric-notice-${++this.noticeSequence}`
@@ -117,6 +117,7 @@ export class FabricController {
       id,
       message: text,
       tone: options.tone ?? 'info',
+      ...(owner === undefined ? {} : { owner }),
     })
     this.update({ notices: Object.freeze([...this.snapshot.notices, notice]) })
     const timeoutMs = options.timeoutMs ?? DEFAULT_NOTICE_TIMEOUT_MS
@@ -139,6 +140,13 @@ export class FabricController {
     const notices = this.snapshot.notices.filter(notice => notice.id !== id)
     if (notices.length === this.snapshot.notices.length) return
     this.update({ notices: Object.freeze(notices) })
+  }
+
+  dismissNoticesByOwner(owner: string): void {
+    const ids = this.snapshot.notices
+      .filter(notice => notice.owner === owner)
+      .map(notice => notice.id)
+    for (const id of ids) this.dismissNotice(id)
   }
 
   /** Release timers and subscriptions when the owning Cordis fiber unloads. */

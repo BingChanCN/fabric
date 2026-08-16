@@ -106,8 +106,8 @@ describe('registered page error isolation', () => {
     const action = contributions.find((item): item is FabricToolbarContribution => item.kind === 'toolbar')!
 
     expect(pageHandle.id).toBe('home')
-    expect(page.id).toBe('isolation-fixture:home')
-    expect(action.id).toBe('isolation-fixture:page/home/action/refresh')
+    expect(page.id).toBe('@dsh-do/isolation-fixture:home')
+    expect(action.id).toBe('@dsh-do/isolation-fixture:page/home/action/refresh')
     expect(action.component({ activePage: page.id } as never)).not.toBeNull()
   })
 })

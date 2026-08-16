@@ -1,40 +1,46 @@
 # Fabric 架构
 
-Fabric 0.5.0 是 DSH 的兼容性隔离层，不是 DSH API 的透传包装。
+Fabric 1.0 是 DSH 内的 Runtime Plugin 内核，不是 DSH API 的透传包装。
 
-## 单例 runtime
+## 两层运行时
 
-每个浏览器 Profile 只加载一份：
+每个 Profile 的 DSH boot graph 只加载一份 `@dsh-do/fabric` Core。Core 拥有：
 
-- ModuleLoader ABI：`@dsh-do/fabric`
-- DSH adapter（slot / Cordis / `--dsw-*` 映射）
-- 语义主题与基础 UI stylesheet
-- command / config / capability / Resource dispatcher
+- profile-local package store 与 `plugins.json` desired state
+- Host definition/Cordis fiber manager
+- 每标签页 ModuleLoader reconciler
+- Package Manager、Mods、Resource、Operation、Config、Document、Blob 与 Credential adapter
+- DSH slot/token/theme bridge 和浏览器单例
 
-下游插件 bundle 只保留业务页面、插件 CSS，以及对 `@dsh-do/fabric` 的 `require`。
-
-DSH 的同步 `require` 不能去拉脚本。Fabric 必须声明 `dsh.client.immediately: true`，在任何下游 factory 物化前先登记 `__ModuleLoader__` factory。Fiber `inject` 等不到这一步。
+生态 Runtime Package 不进入 DSH boot graph。Host 是预构建 ESM definition，Client 是登记稳定 ModuleLoader ID 的预构建单文件 factory；安装后由 Core 动态创建 fiber/entry。
 
 ## 身份
 
-| 名字 | 来源 | 用途 |
-|---|---|---|
-| ModuleLoader id / `package.json.name` | 完整 npm 名 | 浏览器 factory 表 |
-| runtime pluginId | 剥掉 scope 的短名 | 页面/资源/配置命名空间 |
-| Cordis `inject` | 生成式 bootstrap | 客户端等 `fabric`，Host 等 `fabricHost` |
+完整 `package.json.name` 是唯一 canonical package identity，npm scope 不删除。版本来自 `package.json.version`；每次激活由 Core 签发 generation，每个标签页有独立 clientInstanceId。Resource、Capability、Operation 使用 `{ owner, id, exact version }`。
 
-业务代码不再手填这三组名字。
+插件可填写展示 descriptor，但不能覆盖真实 identity。
 
-## 三层上下文
+## 生命周期
 
-- Profile runtime：每 Profile 一份，不持有业务状态
-- Plugin scope：一次 `setup` 一个 `FabricClientPluginContext` / `FabricHostPluginContext`，注册、请求、流全部自动回收
-- Session scope：必须显式传入，禁止隐式“当前 session”
+激活遵循 Host-first：候选静态验证和 staging 完成后，先挂 Host；成功才提交 desired state并发布 Client snapshot。停用/更新遵循 Client-first：向在线标签页发布 retract generation，确认 entry/factory/CSS/effects 已撤销，再停 Host。
 
-Host 与 Client 只经 typed Resource 通信。
+更新失败不会提交候选；旧 Host 和 current/previous 保持可用。单标签页 Client 失败只让该页 degraded，可单独 Retry，不触发全局回退。
 
-## 兼容承诺
+## 持久状态
 
-下游业务源码只依赖 Fabric public API。DSH 改 slot 名、token、WebServer 或 UI primitive 时，升 Fabric 并重建即可，业务文件不改。
+`<profile>/.fabric/` 包含：
 
-0.5.0 删除了 `ctx.fabric.register`、八类旧 contribution、旧 `--dsw-*` 公共 theme API、旧内联 UI 构建边界。旧 bundle 需要一次迁移重建。
+```text
+plugins.json
+packages/<package>/<version>/
+data/<package>/{config,documents,blobs}/
+staging/
+```
+
+版本目录不可变。每包只保留 current + previous 两个成功版本。disable/remove 保留 data；purge 删除 Fabric-owned data。开发 overlay 位于临时 `dev/`，不写 `plugins.json`，lease 结束后恢复 production。
+
+## 公共边界
+
+Runtime Host 只拿窄 Fabric Context，Client 只拿 Fabric Client API。插件间没有 npm 运行时依赖图；同侧直接协作用 Capability，Client/Host 请求用 Resource，长任务用 Operation。Fabric 1.0 的这些契约仅支持 Profile scope。
+
+Runtime Package 是可信本机代码，不是安全沙箱。Fabric 保证经其 Context 注册的 effects 可完整卸载，不声称限制 Host 的 Node 能力或 Client 的页面 JS 能力。

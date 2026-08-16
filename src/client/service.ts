@@ -9,12 +9,16 @@ import type {
   FabricThemeService, FabricToolbarContribution,
 } from './contract.ts'
 import type { FabricCapabilityRegistry } from './capabilities.ts'
+import type {
+  FabricCapabilityBinding, FabricCapabilityDefinition, FabricCapabilityProviderHandle,
+} from '../capability/contract.ts'
 import type { FabricCommandRegistry } from './commands.ts'
 import type { FabricConfigRegistry } from './config-registry.ts'
 import type { FabricController } from './controller.ts'
 import type { FabricThemeManager } from './theme.ts'
 import type { FabricDialogRegistry } from './dialogs.tsx'
 import { PageBoundary } from './components/PageBoundary.tsx'
+import { FabricOperationClient } from './operations.ts'
 
 /** Wrap every registered page inside the DSH slot entry, before the host renderer's boundary. */
 export function guardPageComponent(contribution: FabricPageContribution): FabricPageContribution['component'] {
@@ -38,6 +42,7 @@ export function guardPageComponent(contribution: FabricPageContribution): Fabric
  * downstream plugin fiber rather than Fabric's own fiber.
  */
 export class FabricRuntimeService extends Service implements FabricService {
+  readonly operations = new FabricOperationClient()
   private readonly pageMetadata = new Map<string, Omit<FabricPageContribution, 'component'>>()
   private readonly pageMetadataListeners = new Set<() => void>()
 
@@ -116,14 +121,19 @@ export class FabricRuntimeService extends Service implements FabricService {
     return this.registerConfigContribution({ kind: 'config', ...definition })
   }
 
-  registerCapability<T>(id: string, version: string, scope: 'profile' | 'session', impl: T): () => void {
-    const unregister = this.capabilities.register(id, version, scope, impl)
-    this.ctx.effect(() => () => { unregister() }, `fabric: capability ${id}`)
-    return unregister
+  provideCapability<T extends object>(
+    providerOwner: string,
+    definition: FabricCapabilityDefinition<T>,
+    implementation: T,
+    generation?: string,
+  ): FabricCapabilityProviderHandle<T> {
+    const handle = this.capabilities.provide(providerOwner, definition, implementation, generation)
+    this.ctx.effect(() => () => { handle.dispose() }, `fabric: capability ${definition.owner}/${definition.id}`)
+    return handle
   }
 
-  getCapability<T>(id: string, version?: string, scope: 'profile' | 'session' = 'profile'): T | undefined {
-    return this.capabilities.get<T>(id, version, scope)
+  consumeCapability<T extends object>(definition: FabricCapabilityDefinition<T>): FabricCapabilityBinding<T> {
+    return this.capabilities.consume(definition)
   }
 
   open(pageId?: string): void {
@@ -146,8 +156,16 @@ export class FabricRuntimeService extends Service implements FabricService {
     return this.controller.notify(message, options)
   }
 
+  notifyOwned(owner: string, message: string, options?: Parameters<FabricService['notify']>[1]): () => void {
+    return this.controller.notify(message, options, owner)
+  }
+
   dismissNotice(id: string): void {
     this.controller.dismissNotice(id)
+  }
+
+  dismissNoticesByOwner(owner: string): void {
+    this.controller.dismissNoticesByOwner(owner)
   }
 
   private registerTheme(contribution: FabricThemeContribution): () => void {
@@ -208,6 +226,8 @@ export class FabricRuntimeService extends Service implements FabricService {
       ...(contribution.order !== undefined ? { order: contribution.order } : {}),
       ...(contribution.description !== undefined ? { description: contribution.description } : {}),
       ...(contribution.pluginId !== undefined ? { pluginId: contribution.pluginId } : {}),
+      ...(contribution.owner !== undefined ? { owner: contribution.owner } : {}),
+      ...(contribution.documentId !== undefined ? { documentId: contribution.documentId } : {}),
     })
     this.ctx.effect(() => () => { unregister() }, `fabric: config ${contribution.id}`)
     return unregister

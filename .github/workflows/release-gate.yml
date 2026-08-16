@@ -1,0 +1,56 @@
+name: release gate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  runtime-integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: fabric
+      - uses: actions/checkout@v4
+        with:
+          repository: deepseek-ai/deepseek-harness
+          path: deepseek-harness
+      - uses: actions/checkout@v4
+        with:
+          repository: BingChanCN/dsh-do
+          path: dsh-do
+      - uses: actions/checkout@v4
+        with:
+          repository: BingChanCN/fabric-theme-studio
+          path: fabric-theme-studio
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            fabric/pnpm-lock.yaml
+            deepseek-harness/pnpm-lock.yaml
+            dsh-do/pnpm-lock.yaml
+            fabric-theme-studio/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: fabric
+      - run: pnpm install --frozen-lockfile
+        working-directory: deepseek-harness
+      - run: pnpm install --frozen-lockfile
+        working-directory: dsh-do
+      - run: pnpm install --frozen-lockfile
+        working-directory: fabric-theme-studio
+      - if: runner.os == 'Linux'
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: fabric
+      - if: runner.os == 'Windows'
+        run: pnpm exec playwright install chromium
+        working-directory: fabric
+      - run: pnpm verify
+        working-directory: fabric

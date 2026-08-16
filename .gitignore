@@ -1,5 +1,6 @@
 node_modules/
 lib/
+.scratch/
 .scratch-types/
 .scratch-types-current/
 coverage/

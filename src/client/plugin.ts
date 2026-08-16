@@ -4,8 +4,8 @@ import type {
 } from '../sdk/config.ts'
 import type {
   FabricResourceClient, FabricResourceDefinition, FabricResourceHandlers,
-  FabricSessionRef,
 } from '../resource/contract.ts'
+import type { FabricSessionRef } from '../session.ts'
 import { FabricResourceClientService } from './resources.ts'
 import type { FabricThemeDefinition, FabricThemeProvider } from './theme-contract.ts'
 import type { FabricNoticeOptions, FabricNoticeTone, FabricService } from './contract.ts'
@@ -13,6 +13,16 @@ import type { FabricHudProps as RuntimeHudProps, FabricPageProps as LegacyPagePr
 import type { FabricDialogDefinition, FabricDialogHandle, FabricDialogScope } from './dialogs.tsx'
 import { DeclarativePageAction } from './components/PageAction.tsx'
 import { runtimePluginId } from '../plugin-identity.ts'
+import type {
+  FabricCapabilityBinding, FabricCapabilityDefinition as ContractCapabilityDefinition,
+  FabricCapabilityProviderHandle,
+} from '../capability/contract.ts'
+import type { FabricOperationDefinition, FabricOperationHandle } from '../operation/contract.ts'
+import type { FabricRemoteOperationHandle } from './operations.ts'
+import {
+  defineCredential, fabricCredentialResource,
+  type FabricCredentialDefinition, type FabricCredentialInfo,
+} from '../credential/contract.ts'
 
 export interface FabricPluginDescriptor {
   readonly name: string
@@ -26,6 +36,15 @@ export interface FabricPluginIdentity extends FabricPluginDescriptor {
   /** Full npm package name used by the ModuleLoader ABI. */
   readonly packageName: string
   readonly version: string
+  /** Core-issued activation generation; Runtime Packages cannot choose it. */
+  readonly generation: string
+  /** Browser-tab identity for Runtime Packages. */
+  readonly clientId?: string
+}
+
+export interface FabricClientPluginActivation {
+  readonly generation?: string
+  readonly clientId?: string
 }
 
 export interface FabricPageContext {
@@ -153,18 +172,9 @@ export interface FabricConfigHandle<T extends JsonRecord = JsonRecord> {
   persist(): Promise<import('../sdk/config.ts').ConfigSnapshot<T>>
 }
 
-export interface FabricCapabilityDefinition<T> {
-  readonly id: string
-  readonly version: string
-  readonly scope?: 'profile' | 'session'
-  readonly implementation: T
-}
+export type FabricCapabilityDefinition<T extends object = object> = ContractCapabilityDefinition<T>
 
-export interface FabricCapabilityHandle<T> {
-  readonly id: string
-  readonly version: string
-  get(): T | undefined
-}
+export type FabricCapabilityHandle<T extends object = object> = FabricCapabilityBinding<T>
 
 export interface FabricLifecycle {
   readonly signal: AbortSignal
@@ -190,12 +200,26 @@ export interface FabricClientPluginContext {
     define(definition: FabricHudDefinition): () => void
   }
   readonly capabilities: {
-    provide<T>(definition: FabricCapabilityDefinition<T>): FabricCapabilityHandle<T>
-    require<T>(id: string, version?: string, scope?: 'profile' | 'session'): T
-    optional<T>(id: string, version?: string, scope?: 'profile' | 'session'): T | undefined
+    provide<T extends object>(definition: FabricCapabilityDefinition<T>, implementation: T): FabricCapabilityProviderHandle<T>
+    consume<T extends object>(definition: FabricCapabilityDefinition<T>): FabricCapabilityHandle<T>
   }
   readonly theme: FabricThemeProvider
   readonly resources: FabricResourceClient
+  readonly credentials: {
+    describe(definition: FabricCredentialDefinition): Promise<FabricCredentialInfo>
+    set(definition: FabricCredentialDefinition, value: string): Promise<FabricCredentialInfo>
+    unset(definition: FabricCredentialDefinition): Promise<FabricCredentialInfo>
+  }
+  readonly operations: {
+    start<Input, Result, Progress>(
+      operation: FabricOperationDefinition<Input, Result, Progress>,
+      input: Input,
+    ): Promise<FabricOperationHandle<Result, Progress>>
+    attach<Result, Progress>(
+      operation: FabricOperationDefinition<unknown, Result, Progress>,
+      runId: string,
+    ): Promise<FabricOperationHandle<Result, Progress>>
+  }
   readonly notify: (message: string, options?: FabricNoticeOptions) => () => void
   readonly open: (pageId?: string) => void
   readonly close: () => void
@@ -222,7 +246,7 @@ function scopedId(pluginId: string, localId: string): string {
 function configId(pluginId: string, localId: string): string {
   const local = localId.trim()
   if (local === '') throw new Error('fabric config id must not be empty')
-  return `${pluginId.replace(/[^A-Za-z0-9._-]/gu, '.')}.${local}`
+  return `${pluginId.replace(/^@/u, '').replace(/[^A-Za-z0-9._-]/gu, '.')}.${local}`
 }
 
 function localPageId(pluginId: string, pageId: string | undefined): string | undefined {
@@ -243,17 +267,21 @@ function asSession(value: unknown): FabricSessionRef | undefined {
 
 function MountedPage({
   view: View,
-  props,
+  makeProps,
   fullPageId,
   service,
 }: {
   view: ComponentType<FabricPageProps>
-  props: FabricPageProps
+  makeProps: (signal: AbortSignal) => FabricPageProps
   fullPageId: string
   service: FabricService
 }) {
-  useEffect(() => () => { service.dialogs.closePage(fullPageId) }, [fullPageId, service])
-  return createElement(View, props)
+  const controller = useMemo(() => new AbortController(), [])
+  useEffect(() => () => {
+    controller.abort()
+    service.dialogs.closePage(fullPageId)
+  }, [controller, fullPageId, service])
+  return createElement(View, makeProps(controller.signal))
 }
 
 function MountedPageAction({
@@ -280,8 +308,63 @@ function makeClientContext(
   lifecycle: FabricLifecycle,
 ): FabricClientPluginContext {
   const resources = new FabricResourceClientService(identity.id, lifecycle)
+  const credentialRequest = (definition: FabricCredentialDefinition) => {
+    const token = defineCredential(definition)
+    if (token.owner !== identity.packageName) {
+      throw new Error(`fabric credential consumer "${identity.packageName}" cannot access "${token.owner}/${token.id}"`)
+    }
+    return token
+  }
+  const credentials = {
+    describe(definition: FabricCredentialDefinition): Promise<FabricCredentialInfo> {
+      const token = credentialRequest(definition)
+      return resources.read(fabricCredentialResource, {
+        operation: 'describe', owner: token.owner, id: token.id, version: token.version,
+      })
+    },
+    set(definition: FabricCredentialDefinition, value: string): Promise<FabricCredentialInfo> {
+      const token = credentialRequest(definition)
+      return resources.mutate(fabricCredentialResource, {
+        operation: 'set', owner: token.owner, id: token.id, version: token.version, value,
+      })
+    },
+    unset(definition: FabricCredentialDefinition): Promise<FabricCredentialInfo> {
+      const token = credentialRequest(definition)
+      return resources.mutate(fabricCredentialResource, {
+        operation: 'unset', owner: token.owner, id: token.id, version: token.version,
+      })
+    },
+  }
+  const operationHandles = new Set<FabricRemoteOperationHandle<unknown, unknown>>()
+  lifecycle.onDispose(() => {
+    for (const handle of [...operationHandles]) handle.dispose()
+    operationHandles.clear()
+  })
+  const trackOperation = <Result, Progress>(handle: FabricRemoteOperationHandle<Result, Progress>): FabricOperationHandle<Result, Progress> => {
+    if (lifecycle.signal.aborted) {
+      handle.dispose()
+      throw new DOMException('fabric client plugin disposed', 'AbortError')
+    }
+    operationHandles.add(handle as FabricRemoteOperationHandle<unknown, unknown>)
+    return handle
+  }
+  const operations = {
+    async start<Input, Result, Progress>(
+      operation: FabricOperationDefinition<Input, Result, Progress>,
+      input: Input,
+    ): Promise<FabricOperationHandle<Result, Progress>> {
+      return trackOperation(await service.operations.start(operation, input))
+    },
+    async attach<Result, Progress>(
+      operation: FabricOperationDefinition<unknown, Result, Progress>,
+      runId: string,
+    ): Promise<FabricOperationHandle<Result, Progress>> {
+      return trackOperation(await service.operations.attach(operation, runId))
+    },
+  }
 
-  const notify = (message: string, options?: FabricNoticeOptions) => service.notify(message, options)
+  const notify = (message: string, options?: FabricNoticeOptions) => service.notifyOwned(identity.packageName, message, options)
+  lifecycle.onDispose(() => { service.dismissNoticesByOwner(identity.packageName) })
   const open = (pageId?: string): void => { service.open(pageId === undefined ? undefined : scopedId(identity.id, pageId)) }
   const close = (): void => { service.close() }
   const makeDialogScope = (ownerPageId?: string, pageLocalId?: string): FabricDialogScope => ({
@@ -312,14 +395,14 @@ function makeClientContext(
         return handle
       }
       const pageDialogs = makeDialogScope(fullId, pageId)
-      const pageContext = (raw: unknown): FabricPageProps => {
+      const pageContext = (raw: unknown, signal: AbortSignal): FabricPageProps => {
         const owner = raw as Partial<LegacyPageProps> & { sessionId?: unknown }
         const session = definition.scope === 'session' ? asSession(owner.sessionId) : undefined
         const page: FabricPageContext = {
           id: pageId,
           pluginId: identity.id,
           session,
-          signal: lifecycle.signal,
+          signal,
           resources,
           config: getConfig,
           dialogs: pageDialogs,
@@ -348,7 +431,7 @@ function makeClientContext(
         pluginId: identity.id,
         component: raw => createElement(MountedPage, {
           view: definition.view,
-          props: pageContext(raw),
+          makeProps: signal => pageContext(raw, signal),
           fullPageId: fullId,
           service,
         }),
@@ -455,6 +538,8 @@ function makeClientContext(
         title: definition.title,
         ...(definition.description === undefined ? {} : { description: definition.description }),
         pluginId: identity.id,
+        owner: identity.packageName,
+        documentId: definition.id,
         schema: definition.schema,
       })
       lifecycle.onDispose(stop)
@@ -489,25 +574,19 @@ function makeClientContext(
     },
   }
 
+  function provideCapability<T extends object>(
+    definition: FabricCapabilityDefinition<T>,
+    implementation: T,
+  ): FabricCapabilityProviderHandle<T> {
+    return service.provideCapability(identity.packageName, definition, implementation, identity.generation)
+  }
+
   const capabilities = {
-    provide<T>(definition: FabricCapabilityDefinition<T>): FabricCapabilityHandle<T> {
-      if (definition.id.trim() === '') throw new Error('fabric capability id must not be empty')
-      const scope = definition.scope ?? 'profile'
-      const stop = service.registerCapability(definition.id, definition.version, scope, definition.implementation)
-      lifecycle.onDispose(stop)
-      return {
-        id: definition.id,
-        version: definition.version,
-        get: () => service.getCapability<T>(definition.id, definition.version, scope),
-      }
-    },
-    require<T>(id: string, version?: string, scope: 'profile' | 'session' = 'profile'): T {
-      const value = service.getCapability<T>(id, version, scope)
-      if (value === undefined) throw new Error(`fabric capability "${id}" is unavailable${version === undefined ? '' : ` (requires ${version})`}`)
-      return value
-    },
-    optional<T>(id: string, version?: string, scope: 'profile' | 'session' = 'profile'): T | undefined {
-      return service.getCapability<T>(id, version, scope)
+    provide: provideCapability,
+    consume<T extends object>(definition: FabricCapabilityDefinition<T>): FabricCapabilityHandle<T> {
+      const binding = service.consumeCapability(definition)
+      lifecycle.onDispose(() => { binding.dispose() })
+      return binding
     },
   }
 
@@ -537,6 +616,8 @@ function makeClientContext(
     capabilities,
     theme,
     resources,
+    credentials,
+    operations,
     notify,
     open,
     close,
@@ -547,11 +628,14 @@ export function mountClientPlugin(
   packageName: string,
   version: string,
   definition: FabricClientPluginDefinition,
+  activation: FabricClientPluginActivation = {},
 ): { readonly inject: readonly ['fabric']; readonly apply: (ctx: unknown) => void } {
   const identity: FabricPluginIdentity = {
     id: runtimePluginId(packageName),
     packageName,
     version,
+    generation: activation.generation ?? `static:${version}`,
+    ...(activation.clientId === undefined ? {} : { clientId: activation.clientId }),
     name: definition.descriptor.name,
     ...(definition.descriptor.description === undefined ? {} : { description: definition.descriptor.description }),
     ...(definition.descriptor.icon === undefined ? {} : { icon: definition.descriptor.icon }),
@@ -599,5 +683,6 @@ export function mountClientPlugin(
 
 export type { FabricNoticeOptions, FabricNoticeTone }
 export type { FabricDialogContentProps, FabricDialogDefinition, FabricDialogHandle, FabricDialogScope, FabricDialogSize, FabricDialogUpdate } from './dialogs.tsx'
-export type { FabricResourceClient, FabricResourceDefinition, FabricResourceHandlers, FabricSessionRef }
+export type { FabricResourceClient, FabricResourceDefinition, FabricResourceHandlers }
+export type { FabricSessionRef } from '../session.ts'
 export type { FabricThemeDefinition, FabricThemeProvider }

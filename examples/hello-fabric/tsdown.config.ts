@@ -1,6 +1,7 @@
 import { defineConfig } from 'tsdown'
-import { fabricPlugin } from '@dsh-do/fabric/build'
+import { fabricRuntimePackage } from '@dsh-do/fabric/build'
 
-export default defineConfig(fabricPlugin({
+export default defineConfig(fabricRuntimePackage({
   id: 'hello-fabric',
+  hostEntry: 'src/index.ts',
 }))

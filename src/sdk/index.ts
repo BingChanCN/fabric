@@ -14,5 +14,6 @@ export { defineCodec, defineResource, FabricResourceError, jsonCodec, voidCodec 
 export type {
   FabricCodec, FabricResourceClient, FabricResourceContext, FabricResourceDefinition,
   FabricResourceEmitter, FabricResourceHandler, FabricResourceHandlers, FabricResourceScope,
-  FabricResourceStreamHandler, FabricSessionRef, FabricResourceWatchSnapshot,
+  FabricResourceStreamHandler, FabricResourceWatchSnapshot,
 } from '../resource/contract.ts'
+export type { FabricSessionRef } from '../session.ts'

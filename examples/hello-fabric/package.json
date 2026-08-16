@@ -1,31 +1,21 @@
 {
   "name": "hello-fabric",
-  "version": "0.7.0",
-  "private": true,
+  "version": "1.0.0",
   "type": "module",
-  "main": "lib/index.js",
-  "exports": {
-    ".": "./lib/index.js",
-    "./client": "./lib/client.js",
-    "./package.json": "./package.json"
-  },
-  "dsh": {
-    "bundle": {
-      "patch": "./cordis.patch.yml"
-    },
-    "client": {
-      "inject": ["@dsh-do/fabric"],
-      "platform": "web"
-    }
+  "fabric": {
+    "format": 1,
+    "api": "^1.0.0",
+    "host": "./lib/fabric-host.js",
+    "client": "./lib/fabric-client.js"
   },
   "scripts": {
-    "build": "pnpm run typecheck && tsdown",
-    "typecheck": "tsc --noEmit"
-  },
-  "peerDependencies": {
-    "@dsh-do/fabric": "^0.7.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "clean": "node -e \"require('node:fs').rmSync('lib',{recursive:true,force:true})\"",
+    "build": "pnpm run clean && pnpm run typecheck && fabric build",
+    "typecheck": "tsc --noEmit",
+    "verify": "fabric verify",
+    "pack": "fabric pack",
+    "prepack": "pnpm run build && pnpm run verify",
+    "prepublishOnly": "pnpm run verify"
   },
   "devDependencies": {
     "@dsh-do/fabric": "workspace:*",
@@ -38,7 +28,6 @@
     "typescript": "~5.7.2"
   },
   "files": [
-    "lib",
-    "cordis.patch.yml"
+    "lib"
   ]
 }

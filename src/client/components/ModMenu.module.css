@@ -60,3 +60,122 @@
   font-size: 14px;
   color: var(--fabric-content-primary, #ffffff);
 }
+
+.install {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.path {
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--fabric-border-default, rgba(255, 255, 255, 0.15));
+  border-radius: 6px;
+  background: var(--fabric-surface-sunken, #16161d);
+  color: var(--fabric-content-primary, #ffffff);
+  font: inherit;
+}
+
+.path:focus {
+  outline: 2px solid var(--fabric-border-focus, #4176e6);
+  outline-offset: 1px;
+}
+
+.trust {
+  margin: -6px 0 14px;
+  color: var(--fabric-content-secondary, #a0a0b0);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.packages {
+  display: flex;
+  flex-direction: column;
+}
+
+.package {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 0;
+  border-top: 1px solid var(--fabric-border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+.packageIdentity {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.packageIdentity strong {
+  overflow-wrap: anywhere;
+  color: var(--fabric-content-primary, #ffffff);
+  font-size: 13px;
+}
+
+.packageDetails {
+  flex-basis: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--fabric-content-secondary, #a0a0b0);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.packageActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.command {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--fabric-border-default, rgba(255, 255, 255, 0.15));
+  border-radius: 6px;
+  background: var(--fabric-surface-muted, #22222c);
+  color: var(--fabric-content-primary, #ffffff);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.command:hover:not(:disabled) {
+  background: var(--fabric-interaction-hover, #2f2f3d);
+}
+
+.command:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.danger {
+  color: var(--fabric-state-danger-foreground, #f87171);
+}
+
+.error {
+  flex-basis: 100%;
+  color: var(--fabric-state-danger-foreground, #f87171);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 620px) {
+  .install,
+  .package {
+    grid-template-columns: 1fr;
+  }
+
+  .packageActions {
+    justify-content: flex-start;
+  }
+}

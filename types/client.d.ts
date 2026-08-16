@@ -6,10 +6,11 @@ import type { EventStream } from './sdk.d.ts'
 
 export type { FabricConfigSchema, JsonRecord, JsonValue }
 
-export type FabricResourceScope = 'profile' | 'session'
+export type FabricResourceScope = 'profile'
 export interface FabricSessionRef { readonly id: string }
 export interface FabricCodec<T> { parse(value: unknown): T }
 export interface FabricResourceDefinition<Request, Response, Event = never> {
+  readonly owner: string
   readonly id: string
   readonly version: string
   readonly scope: FabricResourceScope
@@ -21,7 +22,6 @@ export interface FabricResourceContext {
   readonly pluginId: string
   readonly resourceId: string
   readonly scope: FabricResourceScope
-  readonly session: FabricSessionRef | undefined
   readonly signal: AbortSignal
 }
 export type FabricResourceHandler<Request, Response> = (request: Request, context: FabricResourceContext) => Response | Promise<Response>
@@ -32,7 +32,7 @@ export interface FabricResourceHandlers<Request, Response, Event = never> {
   readonly mutate?: FabricResourceHandler<Request, Response>
   readonly stream?: FabricResourceStreamHandler<Request, Event>
 }
-export interface FabricResourceRequestOptions { readonly signal?: AbortSignal; readonly session?: FabricSessionRef }
+export interface FabricResourceRequestOptions { readonly signal?: AbortSignal }
 export interface FabricResourceWatchOptions extends FabricResourceRequestOptions { readonly minRetryMs?: number; readonly maxRetryMs?: number }
 export interface FabricResourceClient {
   read<Request, Response>(resource: FabricResourceDefinition<Request, Response, never>, request: Request, options?: FabricResourceRequestOptions): Promise<Response>
@@ -95,7 +95,8 @@ export type FabricDialogUpdate = Partial<Omit<FabricDialogDefinition, 'id'>>
 export interface FabricDialogHandle { readonly id: string; close(): void; update(patch: FabricDialogUpdate): void }
 export interface FabricDialogScope { open(definition: FabricDialogDefinition): FabricDialogHandle }
 export interface FabricPluginDescriptor { readonly name: string; readonly description?: string; readonly icon?: ReactNode }
-export interface FabricPluginIdentity extends FabricPluginDescriptor { readonly id: string; readonly packageName: string; readonly version: string }
+export interface FabricPluginIdentity extends FabricPluginDescriptor { readonly id: string; readonly packageName: string; readonly version: string; readonly generation: string; readonly clientId?: string }
+export interface FabricClientPluginActivation { readonly generation?: string; readonly clientId?: string }
 export interface FabricLifecycle { readonly signal: AbortSignal; onDispose(cleanup: () => void): void }
 export interface FabricPageContext {
   readonly id: string
@@ -165,8 +166,24 @@ export interface FabricConfigHandle<T extends JsonRecord = JsonRecord> {
   load(): Promise<ConfigSnapshot<T>>
   persist(): Promise<ConfigSnapshot<T>>
 }
-export interface FabricCapabilityDefinition<T> { readonly id: string; readonly version: string; readonly scope?: 'profile' | 'session'; readonly implementation: T }
-export interface FabricCapabilityHandle<T> { readonly id: string; readonly version: string; get(): T | undefined }
+export type FabricCapabilitySide = 'host' | 'client'
+export interface FabricCapabilityDefinition<T extends object = object> { readonly owner: string; readonly id: string; readonly version: string; readonly side: FabricCapabilitySide; readonly valueType?: T }
+export type FabricCapabilityStatus = 'available' | 'unavailable' | 'incompatible'
+export interface FabricCapabilitySnapshot<T extends object = object> { readonly status: FabricCapabilityStatus; readonly value: T | undefined; readonly owner: string; readonly id: string; readonly version: string; readonly availableVersions: readonly string[]; readonly generation: string | undefined }
+export interface FabricCapabilityBinding<T extends object = object> { readonly definition: FabricCapabilityDefinition<T>; getSnapshot(): FabricCapabilitySnapshot<T>; subscribe(listener: () => void): () => void; dispose(): void }
+export interface FabricCapabilityProviderHandle<T extends object = object> { readonly definition: FabricCapabilityDefinition<T>; readonly generation: string; dispose(): void }
+export type FabricCapabilityHandle<T extends object = object> = FabricCapabilityBinding<T>
+export declare function defineCapability<T extends object>(definition: FabricCapabilityDefinition<T>): FabricCapabilityDefinition<T>
+
+export interface FabricOperationDefinition<Input, Result, Progress = never> { readonly owner: string; readonly id: string; readonly version: string; readonly input: FabricCodec<Input>; readonly result: FabricCodec<Result>; readonly progress?: FabricCodec<Progress> }
+export type FabricOperationStatus = 'running' | 'succeeded' | 'failed' | 'cancelled'
+export interface FabricOperationSnapshot<Result, Progress = never> { readonly id: string; readonly owner: string; readonly operationId: string; readonly version: string; readonly status: FabricOperationStatus; readonly progress: Progress | undefined; readonly result: Result | undefined; readonly error: Error | undefined; readonly revision: number }
+export interface FabricOperationHandle<Result, Progress = never> { readonly id: string; getSnapshot(): FabricOperationSnapshot<Result, Progress>; subscribe(listener: () => void): () => void; cancel(): void; result(): Promise<Result> }
+export declare function defineOperation<Input, Result, Progress = never>(definition: FabricOperationDefinition<Input, Result, Progress>): FabricOperationDefinition<Input, Result, Progress>
+
+export interface FabricCredentialDefinition { readonly owner: string; readonly id: string; readonly version: string; readonly ref: string }
+export interface FabricCredentialInfo { readonly configured: boolean; readonly source?: string; readonly writable: boolean }
+export declare function defineCredential(definition: FabricCredentialDefinition): FabricCredentialDefinition
 export interface FabricClientPluginContext {
   readonly identity: FabricPluginIdentity
   readonly lifecycle: FabricLifecycle
@@ -175,15 +192,17 @@ export interface FabricClientPluginContext {
   readonly config: { define<T extends JsonRecord>(definition: FabricConfigDefinition<T>): FabricConfigHandle<T> }
   readonly dialogs: FabricDialogScope
   readonly hud: { define(definition: FabricHudDefinition): () => void }
-  readonly capabilities: { provide<T>(definition: FabricCapabilityDefinition<T>): FabricCapabilityHandle<T>; require<T>(id: string, version?: string, scope?: 'profile' | 'session'): T; optional<T>(id: string, version?: string, scope?: 'profile' | 'session'): T | undefined }
+  readonly capabilities: { provide<T extends object>(definition: FabricCapabilityDefinition<T>, implementation: T): FabricCapabilityProviderHandle<T>; consume<T extends object>(definition: FabricCapabilityDefinition<T>): FabricCapabilityHandle<T> }
   readonly theme: FabricThemeProvider
   readonly resources: FabricResourceClient
+  readonly credentials: { describe(definition: FabricCredentialDefinition): Promise<FabricCredentialInfo>; set(definition: FabricCredentialDefinition, value: string): Promise<FabricCredentialInfo>; unset(definition: FabricCredentialDefinition): Promise<FabricCredentialInfo> }
+  readonly operations: { start<Input, Result, Progress>(operation: FabricOperationDefinition<Input, Result, Progress>, input: Input): Promise<FabricOperationHandle<Result, Progress>>; attach<Result, Progress>(operation: FabricOperationDefinition<unknown, Result, Progress>, runId: string): Promise<FabricOperationHandle<Result, Progress>> }
   readonly notify: (message: string, options?: FabricNoticeOptions) => () => void
   readonly open: (pageId?: string) => void
   readonly close: () => void
 }
 export interface FabricClientPluginDefinition { readonly descriptor: FabricPluginDescriptor; readonly setup: (context: FabricClientPluginContext) => void | (() => void) }
 export declare function defineClientPlugin(definition: FabricClientPluginDefinition): FabricClientPluginDefinition
-export declare function mountClientPlugin(packageName: string, version: string, definition: FabricClientPluginDefinition): { readonly inject: readonly ['fabric']; readonly apply: (ctx: unknown) => void }
+export declare function mountClientPlugin(packageName: string, version: string, definition: FabricClientPluginDefinition, activation?: FabricClientPluginActivation): { readonly inject: readonly ['fabric']; readonly apply: (ctx: unknown) => void }
 
 export * from './ui'

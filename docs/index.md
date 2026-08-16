@@ -1,15 +1,15 @@
 # Fabric 文档
 
-Fabric 0.7.0 是 DSH 插件的兼容性隔离层。每个 Profile 只加载一份 `@dsh-do/fabric` 单例。
+Fabric 1.0 由两层组成：每个 DSH Profile 只静态加载一份 `@dsh-do/fabric` Core；生态插件是由 Core 托管、无需重启即可装卸的 Runtime Package。
 
 | 专题 | 内容 |
 |---|---|
-| [插件开发](plugin-development.md) | define/setup、Page、Resource、构建 |
-| [脚手架](cli.md) | `create-fabric-plugin` |
+| [插件开发](plugin-development.md) | Runtime manifest、Host/Client、Resource、构建 |
+| [CLI](cli.md) | create/build/test/verify/dev/pack |
 | [组件](components.md) | UI 与 `--fabric-*` tokens |
 | [Page action 与 Dialog](page-actions-and-dialogs.md) | action、badge、dialog scope 与 HUD |
-| [配置](configuration.md) | typed config |
+| [配置](configuration.md) | typed Config |
 | [主题](theming.md) | 语义主题 |
-| [命令与 Capability](commands-and-capabilities.md) | 命令面板与跨插件服务 |
-| [架构](architecture.md) | 单例与兼容边界 |
-| [API](api-reference.md) | 公共类型 |
+| [命令与 Capability](commands-and-capabilities.md) | 命令面板与跨插件协作 |
+| [架构](architecture.md) | Core、Runtime lifecycle 与兼容边界 |
+| [API](api-reference.md) | 公共入口与类型 |

@@ -16,7 +16,9 @@ const externals = {
   '@dsh-do/fabric': {
     defineClientPlugin: definition => definition,
     mountClientPlugin: () => ({ inject: ['fabric'], apply() {} }),
+    defineCapability: definition => definition,
     defineCodec: parse => ({ parse }),
+    createAsyncResource: () => ({ getSnapshot: () => ({ status: 'idle' }), subscribe: () => () => {} }),
     defineResource: definition => definition,
     jsonCodec: { parse: value => value },
     voidCodec: { parse: () => undefined },
@@ -47,7 +49,7 @@ const checks = [
   {
     file: 'lib/client.js',
     id: '@dsh-do/fabric',
-    inject: ['slots', 'locale'],
+    inject: ['slots', 'locale', 'loader', 'modules'],
     requires: [
       '@deepseek-ai/cordis',
       '@deepseek-ai/dsh-client-ui-primitives',
@@ -58,8 +60,8 @@ const checks = [
     ],
   },
   {
-    file: 'examples/hello-fabric/lib/client.js',
-    id: 'hello-fabric',
+    file: 'examples/hello-fabric/lib/fabric-client.js',
+    id: 'fabric-runtime/hello-fabric',
     inject: ['fabric'],
     requires: [
       '@dsh-do/fabric',
@@ -119,7 +121,7 @@ for (const check of checks) {
   }
 
   if (check.id === '@dsh-do/fabric') {
-    if (!source.includes('fabric.hud')) fail(check.file, 'singleton bundle does not declare the 0.7 HUD slot')
+    if (!source.includes('fabric.hud')) fail(check.file, 'singleton bundle does not declare the HUD slot')
     if (source.includes('fabric.overlay')) fail(check.file, 'singleton bundle still declares the deleted overlay slot')
   } else if (!source.includes('require("@dsh-do/fabric")') && !source.includes("require('@dsh-do/fabric')")) {
     fail(check.file, 'downstream bundle does not consume the Fabric singleton')

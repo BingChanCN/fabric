@@ -1,10 +1,8 @@
 import type { EventStream, EventStreamSnapshot } from '../sdk/sse.ts'
+import type { FabricOperationHost } from '../operation/contract.ts'
+import type { FabricCredentialHost } from '../credential/contract.ts'
 
-export type FabricResourceScope = 'profile' | 'session'
-
-export interface FabricSessionRef {
-  readonly id: string
-}
+export type FabricResourceScope = 'profile'
 
 export interface FabricCodec<T> {
   parse(value: unknown): T
@@ -23,6 +21,7 @@ export const jsonCodec: FabricCodec<unknown> = defineCodec(value => value)
 const RESOURCE_ID = /^[A-Za-z][A-Za-z0-9._-]{0,63}$/u
 
 export interface FabricResourceDefinition<Request, Response, Event = never> {
+  readonly owner: string
   readonly id: string
   readonly version: string
   readonly scope: FabricResourceScope
@@ -34,8 +33,12 @@ export interface FabricResourceDefinition<Request, Response, Event = never> {
 export function defineResource<Request, Response, Event = never>(
   definition: FabricResourceDefinition<Request, Response, Event>,
 ): FabricResourceDefinition<Request, Response, Event> {
+  if (definition.owner.trim() === '') throw new Error('fabric resource owner is empty')
   if (!RESOURCE_ID.test(definition.id)) {
     throw new Error(`fabric resource id "${definition.id}" is invalid`)
+  }
+  if (definition.version.trim() === '') {
+    throw new Error(`fabric resource "${definition.id}" version is empty`)
   }
   return Object.freeze({ ...definition })
 }
@@ -44,7 +47,6 @@ export interface FabricResourceContext {
   readonly pluginId: string
   readonly resourceId: string
   readonly scope: FabricResourceScope
-  readonly session: FabricSessionRef | undefined
   readonly signal: AbortSignal
 }
 
@@ -69,7 +71,6 @@ export interface FabricResourceHandlers<Request, Response, Event = never> {
 
 export interface FabricResourceRequestOptions {
   readonly signal?: AbortSignal
-  readonly session?: FabricSessionRef
 }
 
 export interface FabricResourceWatchOptions extends FabricResourceRequestOptions {
@@ -146,6 +147,8 @@ export interface FabricAssetHost {
 
 export interface FabricResourceHost {
   readonly assets: FabricAssetHost
+  readonly operations: FabricOperationHost
+  readonly credentials: FabricCredentialHost | undefined
   provide<Request, Response, Event>(
     pluginId: string,
     resource: FabricResourceDefinition<Request, Response, Event>,

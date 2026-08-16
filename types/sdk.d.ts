@@ -175,10 +175,11 @@ export declare class EventStream<T> implements Observable<EventStreamSnapshot<T>
   dispose(): void
 }
 
-export type FabricResourceScope = 'profile' | 'session'
+export type FabricResourceScope = 'profile'
 export interface FabricSessionRef { readonly id: string }
 export interface FabricCodec<T> { parse(value: unknown): T }
 export interface FabricResourceDefinition<Request, Response, Event = never> {
+  readonly owner: string
   readonly id: string
   readonly version: string
   readonly scope: FabricResourceScope
@@ -190,7 +191,6 @@ export interface FabricResourceContext {
   readonly pluginId: string
   readonly resourceId: string
   readonly scope: FabricResourceScope
-  readonly session: FabricSessionRef | undefined
   readonly signal: AbortSignal
 }
 export type FabricResourceHandler<Request, Response> = (request: Request, context: FabricResourceContext) => Response | Promise<Response>
@@ -202,9 +202,9 @@ export interface FabricResourceHandlers<Request, Response, Event = never> {
   readonly stream?: FabricResourceStreamHandler<Request, Event>
 }
 export interface FabricResourceClient {
-  read<Request, Response>(resource: FabricResourceDefinition<Request, Response, never>, request: Request, options?: { readonly signal?: AbortSignal; readonly session?: FabricSessionRef }): Promise<Response>
-  mutate<Request, Response>(resource: FabricResourceDefinition<Request, Response, never>, request: Request, options?: { readonly signal?: AbortSignal; readonly session?: FabricSessionRef }): Promise<Response>
-  watch<Request, Event>(resource: FabricResourceDefinition<Request, unknown, Event> & { readonly event: FabricCodec<Event> }, request: Request, options?: { readonly signal?: AbortSignal; readonly session?: FabricSessionRef }): EventStream<Event>
+  read<Request, Response>(resource: FabricResourceDefinition<Request, Response, never>, request: Request, options?: { readonly signal?: AbortSignal }): Promise<Response>
+  mutate<Request, Response>(resource: FabricResourceDefinition<Request, Response, never>, request: Request, options?: { readonly signal?: AbortSignal }): Promise<Response>
+  watch<Request, Event>(resource: FabricResourceDefinition<Request, unknown, Event> & { readonly event: FabricCodec<Event> }, request: Request, options?: { readonly signal?: AbortSignal }): EventStream<Event>
 }
 export type FabricResourceWatchSnapshot<Event> = EventStreamSnapshot<Event>
 export declare class FabricResourceError extends Error {

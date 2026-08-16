@@ -2,9 +2,12 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
   FabricAssetContext, FabricAssetHandler, FabricAssetHost, FabricCodec, FabricResourceContext,
   FabricResourceDefinition, FabricResourceErrorPayload, FabricResourceHandlers, FabricResourceHost,
-  FabricSessionRef,
 } from '../resource/contract.ts'
 import { FabricResourceError } from '../resource/contract.ts'
+import { FabricOperationRegistry } from '../operation/contract.ts'
+import type { FabricDocumentHost } from '../document/contract.ts'
+import type { FabricBlobHost } from '../blob/contract.ts'
+import type { FabricCredentialHost } from '../credential/contract.ts'
 
 export const FABRIC_RESOURCE_PREFIX = '/fabric/resource'
 export const FABRIC_ASSET_PREFIX = '/fabric/asset'
@@ -63,9 +66,9 @@ function pathParts(pathname: string): { pluginId: string; resourceId: string; op
   }
 }
 
-function sessionFromUrl(url: URL): FabricSessionRef | undefined {
-  const id = url.searchParams.get('sessionId')
-  return id === null || id.trim() === '' ? undefined : { id }
+function versionFromUrl(url: URL): string | undefined {
+  const version = url.searchParams.get('version')
+  return version === null || version.trim() === '' ? undefined : version
 }
 
 type RegisteredAsset = {
@@ -139,6 +142,12 @@ class FabricAssetHostService implements FabricAssetHost {
 /** One host-side dispatcher for every Fabric resource in the profile. */
 export class FabricResourceHostService implements FabricResourceHost {
   readonly assets = new FabricAssetHostService()
+  readonly operations = new FabricOperationRegistry()
+  constructor(
+    readonly documents?: FabricDocumentHost,
+    readonly blobs?: FabricBlobHost,
+    readonly credentials: FabricCredentialHost | undefined = undefined,
+  ) {}
   private readonly resources = new Map<string, RegisteredResource>()
 
   provide<Request, Response, Event>(
@@ -146,6 +155,9 @@ export class FabricResourceHostService implements FabricResourceHost {
     resource: FabricResourceDefinition<Request, Response, Event>,
     handlers: FabricResourceHandlers<Request, Response, Event>,
   ): () => void {
+    if (pluginId !== resource.owner) {
+      throw new Error(`fabric resource provider "${pluginId}" cannot provide contract owned by "${resource.owner}"`)
+    }
     const key = `${pluginId}/${resource.id}`
     if (this.resources.has(key)) throw new Error(`fabric resource "${key}" is already provided`)
     const record: RegisteredResource = {
@@ -171,14 +183,22 @@ export class FabricResourceHostService implements FabricResourceHost {
       writeJson(res, 404, { error: { code: 'resource-not-found', message: 'resource is not registered' } })
       return
     }
+    const requestedVersion = versionFromUrl(url)
+    if (requestedVersion !== record.resource.version) {
+      writeJson(res, 409, {
+        error: {
+          code: 'resource-version-mismatch',
+          message: `resource "${parts.pluginId}/${parts.resourceId}" requires version "${record.resource.version}"`,
+          details: { expected: record.resource.version, received: requestedVersion },
+          retryable: false,
+        },
+      })
+      return
+    }
     const operation = parts.operation as 'query' | 'mutate' | 'stream'
     const handler = record.handlers[operation]
     if (handler === undefined) {
       writeJson(res, 405, { error: { code: 'operation-not-supported', message: `operation "${parts.operation}" is not supported` } })
-      return
-    }
-    if (record.resource.scope === 'session' && sessionFromUrl(url) === undefined) {
-      writeJson(res, 400, { error: { code: 'session-required', message: 'a session resource requires an explicit session' } })
       return
     }
 
@@ -186,12 +206,10 @@ export class FabricResourceHostService implements FabricResourceHost {
     const abortRequest = (): void => { abort.abort() }
     req.on('aborted', abortRequest)
     res.on('close', abortRequest)
-    const session = record.resource.scope === 'session' ? sessionFromUrl(url) : undefined
     const context: FabricResourceContext = {
       pluginId: record.pluginId,
       resourceId: record.resource.id,
       scope: record.resource.scope,
-      session,
       signal: abort.signal,
     }
 
@@ -286,8 +304,6 @@ export function resourceUrl(pluginId: string, resourceId: string, operation: str
   return `${FABRIC_RESOURCE_PREFIX}/${encodeURIComponent(pluginId)}/${encodeURIComponent(resourceId)}/${operation}`
 }
 
-export function resourceInputUrl(url: string, input: unknown, session: FabricSessionRef | undefined): string {
-  const query = new URLSearchParams({ input: JSON.stringify(input) })
-  if (session !== undefined) query.set('sessionId', session.id)
-  return `${url}?${query.toString()}`
+export function resourceInputUrl(url: string, input: unknown): string {
+  return `${url}?${new URLSearchParams({ input: JSON.stringify(input) }).toString()}`
 }

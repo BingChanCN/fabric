@@ -7,17 +7,18 @@ import type {
   FabricHudProps, FabricPageProps, FabricSettingsProps, FabricToolbarActionProps,
 } from '../src/client/contract.ts'
 import { FabricCapabilityRegistry } from '../src/client/capabilities.ts'
+import { defineCapability } from '../src/capability/contract.ts'
 import { FabricCommandRegistry } from '../src/client/commands.ts'
 import { FabricConfigRegistry } from '../src/client/config-registry.ts'
 import { FabricController } from '../src/client/controller.ts'
 import { FabricDialogRegistry } from '../src/client/dialogs.tsx'
 import { FabricRuntimeService } from '../src/client/service.ts'
 import { FabricThemeManager } from '../src/client/theme.ts'
-import type { ConfigResourceTransport } from '../src/sdk/config.ts'
+import type { FabricNamespacedConfigTransport } from '../src/client/config-registry.ts'
 
-const resourceTransport: ConfigResourceTransport = {
-  read: async id => ({ id, seq: 0, values: {} }),
-  write: async (id, seq, values) => ({ id, seq: seq + 1, values }),
+const resourceTransport: FabricNamespacedConfigTransport = {
+  read: async (_owner, id) => ({ id, seq: 0, values: {} }),
+  write: async (_owner, id, seq, values) => ({ id, seq: seq + 1, values }),
 }
 
 type RuntimeExports = {
@@ -257,6 +258,10 @@ describe('FabricRuntimeService.register', () => {
 
   it('releases commands and capabilities with the downstream fiber', async () => {
     const { ctx } = await bootFabric(true)
+    const capability = defineCapability<{ ok: boolean }>({
+      owner: '@example/service-test', id: 'demo', version: '1', side: 'client',
+    })
+    const binding = ctx.fabric.consumeCapability(capability)
     const downstream = ctx.plugin({
       name: 'fabric-command-cap',
       inject: ['fabric'],
@@ -267,17 +272,18 @@ describe('FabricRuntimeService.register', () => {
           title: 'Ping',
           handler: () => {},
         })
-        pluginCtx.fabric.registerCapability('demo-cap', '1', 'profile', { ok: true })
+        pluginCtx.fabric.provideCapability('@example/service-test', capability, { ok: true }, 'test-generation')
       },
     })
 
     await downstream.await()
     expect(ctx.fabric.commands.list().map(command => command.id)).toContain('demo.ping')
-    expect(ctx.fabric.getCapability<{ ok: boolean }>('demo-cap', '1')).toEqual({ ok: true })
+    expect(binding.getSnapshot().value).toEqual({ ok: true })
 
     await downstream.dispose()
     expect(ctx.fabric.commands.list().some(command => command.id === 'demo.ping')).toBe(false)
-    expect(ctx.fabric.getCapability('demo-cap', '1')).toBeUndefined()
+    expect(binding.getSnapshot().status).toBe('unavailable')
+    binding.dispose()
     await ctx.fiber.dispose()
   })
 })

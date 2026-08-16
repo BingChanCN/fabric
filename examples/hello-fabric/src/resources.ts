@@ -1,8 +1,7 @@
-import { defineCodec, defineResource, voidCodec } from '@dsh-do/fabric/sdk'
+import { defineCodec, defineResource, voidCodec } from '@dsh-do/fabric/contracts'
 
 export interface ExampleStatus {
   readonly status: 'ok'
-  readonly sessionId: string | undefined
   readonly enabled: boolean
 }
 
@@ -13,8 +12,7 @@ const statusCodec = defineCodec<ExampleStatus>(value => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('invalid example status')
   const item = value as Record<string, unknown>
   if (item.status !== 'ok' || typeof item.enabled !== 'boolean') throw new Error('invalid example status')
-  if (item.sessionId !== undefined && typeof item.sessionId !== 'string') throw new Error('invalid example session')
-  return { status: 'ok', sessionId: item.sessionId as string | undefined, enabled: item.enabled }
+  return { status: 'ok', enabled: item.enabled }
 })
 
 const settingsRequestCodec = defineCodec<ExampleSettingsRequest>(value => {
@@ -32,9 +30,9 @@ const settingsResponseCodec = defineCodec<ExampleSettingsResponse>(value => {
 })
 
 export const statusResource = defineResource<void, ExampleStatus>({
-  id: 'status', version: '1', scope: 'session', request: voidCodec, response: statusCodec,
+  owner: 'hello-fabric', id: 'status', version: '1', scope: 'profile', request: voidCodec, response: statusCodec,
 })
 
 export const settingsResource = defineResource<ExampleSettingsRequest, ExampleSettingsResponse>({
-  id: 'settings', version: '1', scope: 'profile', request: settingsRequestCodec, response: settingsResponseCodec,
+  owner: 'hello-fabric', id: 'settings', version: '1', scope: 'profile', request: settingsRequestCodec, response: settingsResponseCodec,
 })

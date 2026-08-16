@@ -1,7 +1,5 @@
-import { defineHostPlugin, mountHostPlugin } from '@dsh-do/fabric'
+import { defineHostPlugin } from '@dsh-do/fabric/host'
 import { settingsResource, statusResource } from './resources.ts'
-
-const PACKAGE_VERSION = '0.7.0'
 
 const definition = defineHostPlugin({
   descriptor: {
@@ -11,11 +9,7 @@ const definition = defineHostPlugin({
   setup({ resources }) {
     let enabled = false
     resources.provide(statusResource, {
-      query: (_request, context) => ({
-        status: 'ok',
-        sessionId: context.session?.id,
-        enabled,
-      }),
+      query: () => ({ status: 'ok', enabled }),
     })
     resources.provide(settingsResource, {
       mutate: request => {
@@ -26,4 +20,4 @@ const definition = defineHostPlugin({
   },
 })
 
-export const { inject, apply } = mountHostPlugin('hello-fabric', PACKAGE_VERSION, definition)
+export default definition

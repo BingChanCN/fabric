@@ -22,11 +22,10 @@ function DemoDialog({ dialog }: FabricDialogContentProps) {
 }
 
 export function ExamplePage({ page, sessionId, resources, config: getConfig, openFabric, notify }: FabricPageProps) {
-  const config = useFabricConfig<{ enabled: boolean }>(getConfig('dsh-do.hello-fabric.preferences'))
-  const resource = useMemo(() => createAsyncResource<ExampleStatus>(async signal => {
-    if (sessionId === undefined) throw new Error('select a session before querying status')
-    return resources.read(statusResource, undefined, { signal, session: { id: sessionId } })
-  }), [resources, sessionId])
+  const config = useFabricConfig<{ enabled: boolean }>(getConfig('hello-fabric.preferences'))
+  const resource = useMemo(() => createAsyncResource<ExampleStatus>(
+    signal => resources.read(statusResource, undefined, { signal }),
+  ), [resources])
   const snapshot = useAsyncResource(resource, { load: false })
 
   const loadStatus = (): void => {
@@ -40,7 +39,7 @@ export function ExamplePage({ page, sessionId, resources, config: getConfig, ope
       <PageHeader
         title="Hello Fabric"
         description="A small downstream plugin using Fabric's page and SDK contracts."
-        actions={<button type="button" className={css.button} onClick={loadStatus}>Check session API</button>}
+        actions={<button type="button" className={css.button} onClick={loadStatus}>Check Host API</button>}
       />
       <Section title="Persisted config" description="useFabricConfig reads the typed Fabric config handle.">
         <label className={css.row}>
@@ -76,6 +75,21 @@ export function ExamplePage({ page, sessionId, resources, config: getConfig, ope
           >
             Open Demo Dialog
           </button>
+          <button
+            type="button"
+            className={css.button}
+            onClick={() => {
+              page.dialogs.open({
+                id: 'non-modal-demo',
+                title: 'Non-modal Fabric Dialog',
+                description: 'The Workbench remains interactive while this dialog is open.',
+                content: DemoDialog,
+                modal: false,
+              })
+            }}
+          >
+            Open Non-modal Dialog
+          </button>
           <Dropdown
             trigger={<button type="button" className={css.button}>Dropdown Menu ▾</button>}
             items={[
@@ -94,12 +108,12 @@ export function ExamplePage({ page, sessionId, resources, config: getConfig, ope
       <Section title="Request lifecycle" description="The typed Resource client owns transport and cancellation.">
         <AsyncView
           snapshot={snapshot}
-          empty={<EmptyState title="No request yet" description="Run the session API check to populate this view." />}
+          empty={<EmptyState title="No request yet" description="Run the Host API check to populate this view." />}
           isEmpty={value => value.status !== 'ok'}
           onRetry={loadStatus}
           retryLabel="Retry"
         >
-          {value => <div className={css.result}>Connected for session: {value.sessionId ?? 'global endpoint'}</div>}
+          {value => <div className={css.result}>Host status: {value.status}</div>}
         </AsyncView>
       </Section>
     </Page>

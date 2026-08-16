@@ -1,3 +1,4 @@
+import { createElement } from 'react'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -24,26 +25,42 @@ import type {
 } from './components/props.ts'
 import { en, zh } from './locales.ts'
 import type { FabricThemeDefinition } from './theme-contract.ts'
+import { FabricRuntimeClientReconciler, installFabricRuntimeClient } from './runtime.ts'
 
 export { defineClientPlugin, mountClientPlugin } from './plugin.ts'
+export * from '../sdk/index.ts'
+export * from '../ui/index.tsx'
+export { FabricRuntimeClientReconciler } from './runtime.ts'
+export { FabricOperationClient, FabricRemoteOperationHandle } from './operations.ts'
+export { defineOperation, FABRIC_OPERATION_PREFIX } from '../operation/contract.ts'
+export type {
+  FabricOperationDefinition, FabricOperationHandle, FabricOperationSnapshot, FabricOperationStatus,
+} from '../operation/contract.ts'
+export { defineCapability } from '../capability/contract.ts'
+export { defineCredential } from '../credential/contract.ts'
+export type { FabricCredentialDefinition, FabricCredentialInfo } from '../credential/contract.ts'
+export type {
+  FabricCapabilityBinding, FabricCapabilityDefinition, FabricCapabilityProviderHandle,
+  FabricCapabilitySide, FabricCapabilitySnapshot, FabricCapabilityStatus,
+} from '../capability/contract.ts'
 export type { JsonRecord, FabricConfigSchema, ConfigResourceTransport } from '../sdk/config.ts'
 export type { JsonValue } from '../sdk/json.ts'
 
 export type {
-  FabricCapabilityDefinition, FabricCapabilityHandle, FabricClientPluginContext,
+  FabricCapabilityHandle, FabricClientPluginContext,
   FabricClientPluginDefinition, FabricCommandDefinition, FabricConfigDefinition,
   FabricConfigHandle, FabricCustomPageActionDefinition, FabricDeclarativePageActionDefinition,
   FabricDialogContentProps, FabricDialogDefinition, FabricDialogHandle, FabricDialogScope, FabricDialogSize, FabricDialogUpdate,
   FabricHudDefinition, FabricHudProps, FabricLifecycle, FabricPageActionDefinition, FabricPageActionProps,
   FabricPageContext, FabricPageDefinition, FabricPageHandle, FabricPageProps,
-  FabricPluginDescriptor, FabricPluginIdentity, FabricSettingsProps,
+  FabricPluginDescriptor, FabricPluginIdentity, FabricSessionRef, FabricSettingsProps,
 } from './plugin.ts'
 export { FabricResourceClientService } from './resources.ts'
 export { defineCodec, defineResource, FabricResourceError, jsonCodec, voidCodec } from '../resource/contract.ts'
 export type {
   FabricCodec, FabricResourceClient, FabricResourceContext, FabricResourceDefinition,
   FabricResourceEmitter, FabricResourceHandler, FabricResourceHandlers, FabricResourceScope,
-  FabricResourceStreamHandler, FabricSessionRef,
+  FabricResourceStreamHandler,
 } from '../resource/contract.ts'
 export type {
   FabricSemanticAccent, FabricSemanticBorder, FabricSemanticContent, FabricSemanticInteraction,
@@ -57,7 +74,7 @@ export type { FabricNoticeOptions, FabricNoticeTone } from './contract.ts'
 const NS = 'fabric'
 
 /** Required Cordis services; slot declaration order is handled by slots.inject. */
-export const inject = ['slots', 'locale']
+export const inject = ['slots', 'locale', 'loader', 'modules']
 
 /** Install the Fabric service and its three additive DSH shell surfaces. */
 export function apply(ctx: ClientContext): void {
@@ -148,13 +165,15 @@ export function apply(ctx: ClientContext): void {
   const stopDefaultTheme = theme.setSemantic('fabric:defaults', defaultTheme, { priority: -100 })
   const resourceClient = new FabricResourceClientService('fabric')
   const configs = new FabricConfigRegistry({
-    read: async (id, schema) => resourceClient.read(fabricConfigResource, { operation: 'read', id, schema }),
-    write: async (id, seq, values, schema) => resourceClient.mutate(fabricConfigResource, { operation: 'write', id, seq, values, schema }),
+    read: async (owner, id, schema) => resourceClient.read(fabricConfigResource, { operation: 'read', owner, id, schema }),
+    write: async (owner, id, seq, values, schema) => resourceClient.mutate(fabricConfigResource, { operation: 'write', owner, id, seq, values, schema }),
   })
   const commands = new FabricCommandRegistry(error => { controller.notify(error.message, { tone: 'error' }) })
   const capabilities = new FabricCapabilityRegistry()
   const dialogs = new FabricDialogRegistry()
   service = new FabricRuntimeService(ctx, controller, theme, configs, commands, capabilities, dialogs)
+  const runtimeClient = new FabricRuntimeClientReconciler(ctx)
+  installFabricRuntimeClient(runtimeClient)
 
   ctx.effect(() => {
     const stop = controller.start()
@@ -184,7 +203,7 @@ export function apply(ctx: ClientContext): void {
     label: () => t('mods.title'),
     icon: '▦',
     keepAlive: true,
-    component: ModMenu,
+    component: props => createElement(ModMenu, { ...props, operations: service.operations }),
   })
   service.register({
     kind: 'command',
@@ -265,4 +284,12 @@ export function apply(ctx: ClientContext): void {
       catalog: configs,
     }),
   }, FabricSettings))
+
+  ctx.effect(() => {
+    void runtimeClient.start()
+    return () => {
+      installFabricRuntimeClient(undefined)
+      void runtimeClient.dispose()
+    }
+  }, 'fabric: runtime client reconciler')
 }

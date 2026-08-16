@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.0
+
+- Fabric Core 成为唯一进入 DSH boot graph 的静态基础插件；生态插件改为 profile-local Runtime Package，支持即时安装、启停、升级、回退、remove 和 purge。
+- 新增不可变 package store、`plugins.json` desired state、Host-first/Client-first reconcile、多标签页 generation 确认和 current/previous 失败恢复。
+- 新增 npm/file:tgz/directory 安装源、registry integrity、无副作用 manifest/bundle validator 和 staging/orphan 清理；Runtime 代码视为可信本机代码，不执行 lifecycle script。
+- 新增 profile-only Resource/Capability/Operation contract identity、revocable Capability binding、可重连 Operation transport，以及 Config/Document/Blob/Credential 数据平面。
+- 新增 Mods 控制面、`fabric create/build/test/verify/dev/pack`、真实 tgz 闸门和 lease-based 开发 overlay。
+- canonical identity 改为完整 npm package name，不再剥 scope；删除 0.x Capability 兼容层和静态 `fabricPlugin()` 构建预设。
+- hello-fabric 与 Fabric Theme Studio 迁为首批 Runtime Package；完整 DSH 双标签页浏览器闸门覆盖 dsh-do 安装、更新/回退、失败候选、开发热换与重启恢复。
+
 ## 0.7.0
 
 - **Page 工作单元**：action 默认改为声明式 `label` / `icon` / `tone` / `disabled` / `hidden` / `tooltip` / `onClick`；Promise 自动 pending、异常进入通知、切页时 abort。复杂交互通过互斥的 `render` 逃生口实现。

@@ -1,5 +1,5 @@
 export function runtimePluginId(packageName: string): string {
-  const id = packageName.slice(packageName.lastIndexOf('/') + 1)
-  if (id === '') throw new Error(`fabric: package name "${packageName}" has no runtime id`)
+  const id = packageName.trim()
+  if (id === '' || id.endsWith('/')) throw new Error(`fabric: package name "${packageName}" has no runtime id`)
   return id
 }

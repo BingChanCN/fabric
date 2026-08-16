@@ -1,7 +1,7 @@
 import { createEventStream, type EventStream } from '../sdk/sse.ts'
 import type {
   FabricResourceClient, FabricResourceDefinition, FabricResourceRequestOptions,
-  FabricResourceWatchOptions, FabricSessionRef,
+  FabricResourceWatchOptions,
 } from '../resource/contract.ts'
 import { FabricResourceError } from '../resource/contract.ts'
 const RESOURCE_PREFIX = '/fabric/resource'
@@ -37,12 +37,10 @@ function resourceUrl(pluginId: string, resourceId: string, operation: string): s
   return `${RESOURCE_PREFIX}/${encodeURIComponent(pluginId)}/${encodeURIComponent(resourceId)}/${operation}`
 }
 
-function resourceInputUrl(url: string, input: unknown, session: FabricSessionRef | undefined): string {
-  const query = new URLSearchParams()
+function resourceInputUrl(url: string, version: string, input: unknown): string {
+  const query = new URLSearchParams({ version })
   if (input !== undefined) query.set('input', JSON.stringify(input))
-  if (session !== undefined) query.set('sessionId', session.id)
-  const encoded = query.toString()
-  return encoded === '' ? url : `${url}?${encoded}`
+  return `${url}?${query.toString()}`
 }
 
 async function parseResponse(response: Response): Promise<unknown> {
@@ -66,24 +64,10 @@ async function parseResponse(response: Response): Promise<unknown> {
   return payload
 }
 
-function validateScope(resource: FabricResourceDefinition<unknown, unknown, unknown>, session: FabricSessionRef | undefined): void {
-  if (resource.scope === 'session' && session === undefined) {
-    throw new FabricResourceError({ code: 'session-required', message: `fabric resource "${resource.id}" requires an explicit session` })
-  }
-  if (resource.scope === 'profile' && session !== undefined) {
-    throw new FabricResourceError({ code: 'session-not-allowed', message: `fabric resource "${resource.id}" is profile-scoped` })
-  }
-}
-
-function sessionQuery(session: FabricSessionRef | undefined): string {
-  if (session === undefined) return ''
-  return `?sessionId=${encodeURIComponent(session.id)}`
-}
-
 /** Browser transport for the profile's single Fabric resource dispatcher. */
 export class FabricResourceClientService implements FabricResourceClient {
   constructor(
-    private readonly pluginId: string,
+    _consumerId: string,
     private readonly owner: ResourceOwner | undefined = undefined,
   ) {}
 
@@ -108,12 +92,11 @@ export class FabricResourceClientService implements FabricResourceClient {
     request: Request,
     options: FabricResourceWatchOptions = {},
   ): EventStream<Event> {
-    validateScope(resource, options.session)
     const parsedRequest = resource.request.parse(request)
     const url = resourceInputUrl(
-      resourceUrl(this.pluginId, resource.id, 'stream'),
+      resourceUrl(resource.owner, resource.id, 'stream'),
+      resource.version,
       parsedRequest,
-      options.session,
     )
     const stream = createEventStream<Event>({
       url,
@@ -135,11 +118,11 @@ export class FabricResourceClientService implements FabricResourceClient {
     request: Request,
     options: FabricResourceRequestOptions,
   ): Promise<Response> {
-    validateScope(resource, options.session)
     const parsedRequest = resource.request.parse(request)
     const owned = ownedSignal(this.owner?.signal, options.signal)
     try {
-      const response = await fetch(`${resourceUrl(this.pluginId, resource.id, operation)}${sessionQuery(options.session)}`, {
+      const query = new URLSearchParams({ version: resource.version })
+      const response = await fetch(`${resourceUrl(resource.owner, resource.id, operation)}?${query.toString()}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(parsedRequest),

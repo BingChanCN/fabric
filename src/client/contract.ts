@@ -11,8 +11,12 @@ import type {
   FabricThemeRecord,
 } from '../sdk/config.ts'
 import type { FabricCapabilityService } from './capabilities.ts'
+import type {
+  FabricCapabilityBinding, FabricCapabilityDefinition, FabricCapabilityProviderHandle,
+} from '../capability/contract.ts'
 import type { FabricCommandDefinition, FabricCommandService } from './commands.ts'
 import type { FabricDialogRegistry } from './dialogs.tsx'
+import type { FabricClientOperationHost } from './operations.ts'
 
 /** Tone used by the framework notice stack. */
 export type FabricNoticeTone = 'info' | 'success' | 'warning' | 'error'
@@ -29,6 +33,8 @@ export interface FabricNotice {
   readonly id: string
   readonly message: string
   readonly tone: FabricNoticeTone
+  /** Internal runtime owner used to retract notices during hot unload. */
+  readonly owner?: string
 }
 
 /** Navigation metadata projected from a `fabric.page` slot contribution. */
@@ -153,6 +159,8 @@ export interface FabricConfigContribution extends FabricContributionBase {
   title: string
   description?: string
   pluginId?: string
+  owner?: string
+  documentId?: string
   schema: FabricConfigSchema
 }
 
@@ -215,7 +223,10 @@ export interface FabricService extends HostObservable<FabricSnapshot> {
   toggle(pageId?: string): void
   navigate(pageId: string): void
   notify(message: string, options?: FabricNoticeOptions): () => void
+  /** Runtime-package notice scoped to its canonical package owner. */
+  notifyOwned(owner: string, message: string, options?: FabricNoticeOptions): () => void
   dismissNotice(id: string): void
+  dismissNoticesByOwner(owner: string): void
   /** Update a registered page badge. Normal plugins use the handle returned by pages.define. */
   setPageBadge(id: string, value: string | number | undefined): void
   /** Theme management service. */
@@ -228,12 +239,19 @@ export interface FabricService extends HostObservable<FabricSnapshot> {
   readonly capabilities: FabricCapabilityService
   /** Profile-singleton dialog stack. Normal plugins use context.dialogs. */
   readonly dialogs: FabricDialogRegistry
+  /** Typed long-running Host operations. */
+  readonly operations: FabricClientOperationHost
   /** Register a persisted config document and auto-render it in settings. */
   registerConfig(definition: Omit<FabricConfigContribution, 'kind'>): () => void
-  /** Register a named capability for the calling plugin fiber's lifetime. */
-  registerCapability<T>(id: string, version: string, scope: 'profile' | 'session', impl: T): () => void
-  /** Read a previously registered capability, if present. */
-  getCapability<T>(id: string, version?: string, scope?: 'profile' | 'session'): T | undefined
+  /** Provide a typed capability owned by the provider's canonical package name. */
+  provideCapability<T extends object>(
+    providerOwner: string,
+    definition: FabricCapabilityDefinition<T>,
+    implementation: T,
+    generation?: string,
+  ): FabricCapabilityProviderHandle<T>
+  /** Observe a typed capability even when its provider is not currently active. */
+  consumeCapability<T extends object>(definition: FabricCapabilityDefinition<T>): FabricCapabilityBinding<T>
 }
 
 declare module '@deepseek-ai/cordis' {

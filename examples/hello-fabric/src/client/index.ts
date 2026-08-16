@@ -1,4 +1,4 @@
-import { defineClientPlugin, type FabricClientPluginContext, type FabricConfigDefinition, type FabricPageDefinition } from '@dsh-do/fabric/client'
+import { defineCapability, defineClientPlugin, type FabricClientPluginContext, type FabricConfigDefinition, type FabricPageDefinition } from '@dsh-do/fabric/client'
 import { ExamplePage } from './ExamplePage.tsx'
 import { ExampleSettings } from './ExampleSettings.tsx'
 
@@ -17,6 +17,13 @@ const configDefinition: FabricConfigDefinition<{ enabled: boolean }> = {
   settings: ExampleSettings,
 }
 
+const statusCapability = defineCapability<{ ping(): string }>({
+  owner: 'hello-fabric',
+  id: 'status',
+  version: '1',
+  side: 'client',
+})
+
 const definition = defineClientPlugin({
   descriptor: {
     name: 'Hello Fabric',
@@ -25,11 +32,8 @@ const definition = defineClientPlugin({
   },
   setup(ctx: FabricClientPluginContext) {
     const preferences = ctx.config.define(configDefinition)
-    ctx.capabilities.provide({
-      id: 'status',
-      version: '1',
-      implementation: { ping: () => 'ok' },
-    })
+    ctx.capabilities.provide(statusCapability, { ping: () => 'ok' })
+    const status = ctx.capabilities.consume(statusCapability)
     ctx.theme.provide('accent', {
       surface: {
         base: '#111827', raised: '#1f2937', sunken: '#0f172a', muted: '#1e293b', overlay: 'rgba(0, 0, 0, 0.5)',
@@ -72,8 +76,10 @@ const definition = defineClientPlugin({
       description: '通过 Fabric command 触发通知。',
       shortcut: 'Mod+Shift+H',
       run: () => {
-        const status = ctx.capabilities.require<{ ping: () => string }>('status', '1')
-        ctx.notify(status.ping() === 'ok' ? 'Hello from a command' : 'capability unavailable', { tone: 'success' })
+        const snapshot = status.getSnapshot()
+        ctx.notify(snapshot.value?.ping() === 'ok' ? 'Hello from a command' : 'capability unavailable', {
+          tone: snapshot.status === 'available' ? 'success' : 'warning',
+        })
       },
     })
   },

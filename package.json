@@ -1,6 +1,6 @@
 {
   "name": "@dsh-do/fabric",
-  "version": "0.7.0",
+  "version": "1.0.0",
   "description": "Composable frontend framework for DeepSeek Harness plugins",
   "type": "module",
   "author": "BingChanCN",
@@ -22,6 +22,14 @@
       "types": "./types/client.d.ts",
       "default": "./lib/client.js"
     },
+    "./host": {
+      "types": "./types/host.d.ts",
+      "default": "./lib/host.js"
+    },
+    "./contracts": {
+      "types": "./types/contracts.d.ts",
+      "default": "./lib/contracts.js"
+    },
     "./sdk": {
       "types": "./types/sdk.d.ts",
       "default": "./lib/sdk.js"
@@ -41,7 +49,8 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "create-fabric-plugin": "./lib/create.js"
+    "create-fabric-plugin": "./lib/create.js",
+    "fabric": "./lib/cli.js"
   },
   "dsh": {
     "bundle": {
@@ -50,6 +59,7 @@
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-modules",
         "@deepseek-ai/dsh-client-ui-slots",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-layout",
@@ -77,6 +87,7 @@
     "verify:ci": "npm run test && npm run build && npm run build:example && npm run client:check && npm run pack:check && npm run create:check && npm run types:check",
     "prepublishOnly": "npm run verify",
     "create:check": "node scripts/check-create.mjs",
+    "cli:check": "vitest run tests/cli.spec.ts",
     "client:check": "node scripts/check-client-bundles.mjs",
     "pack:check": "node scripts/check-pack.mjs",
     "types:check": "node scripts/check-types.mjs",
@@ -85,6 +96,7 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-modules": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-layout": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",
@@ -102,11 +114,17 @@
     }
   },
   "dependencies": {
-    "lightningcss": "^1.30.2"
+    "@npmcli/config": "^11.0.1",
+    "lightningcss": "^1.30.2",
+    "npm-package-arg": "^14.0.0",
+    "pacote": "^22.0.0",
+    "semver": "^7.8.5",
+    "tar": "^7.5.22"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-client-locale": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-modules": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-layout": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",
@@ -114,6 +132,7 @@
     "@deepseek-ai/dsh-client-ui-sidebar": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-client-ui-slots": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-host-webserver": "^0.1.0-rc.6",
+    "@playwright/test": "^1.62.1",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^22.20.0",
     "@types/react": "~18.3.1",
