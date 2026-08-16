@@ -19,6 +19,17 @@ fabric create @example/my-plugin
 
 scoped 名创建短目录（`my-plugin`），但 canonical package identity 始终保留完整 `@scope/name`。
 
+## 迁移普通插件
+
+```sh
+fabric migrate analyze D:/work/legacy-plugin
+fabric migrate apply D:/work/legacy-plugin --out D:/work/legacy-plugin-runtime
+```
+
+这组命令只分析本地源码。`analyze` 会输出 `portable`、`manual` 或 `blocked` 以及文件/行号证据；`apply` 只接受严格的纯 `shell.overlay` 子集，生成新的 Fabric HUD Runtime Package，不改源目录也不覆盖目标目录。复杂 Host 行为、DSH 私有模块、Settings/Agent/Session 能力、资源 URL 和已发布 tgz 不会被自动转换。生成包仍需执行 `pnpm install && pnpm build && fabric verify`。
+
+详细范围见 [普通插件迁移](migration.md)。
+
 ## 构建与测试
 
 ```sh
@@ -44,7 +55,7 @@ fabric verify
 fabric pack
 ```
 
-`verify` 把已构建目录送入 Core 使用的同一个 admission validator。`pack` 先验证目录，执行真实 `npm pack`，再验证 tgz，成功后输出 tgz 路径。
+`verify` 把已构建目录送入 Core 使用的同一个 admission validator。`pack` 先验证目录，执行真实 `npm pack`，再验证 tgz，成功后输出 tgz 路径。Core 的 `migrate:check` 闸门还会实际构建一个迁移 fixture 并重新走 admission。
 
 ## 开发热更新
 

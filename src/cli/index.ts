@@ -8,6 +8,7 @@ import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { scaffoldPlugin, parseCreateArgs } from '../create/index.ts'
 import { FabricInventoryStore, FabricPackageStore } from '../host/package-store.ts'
+import { analyzeLegacyDshPlugin, applyLegacyDshPluginMigration, formatFabricMigrationAnalysis } from '../migrate/index.ts'
 import { parseFabricRuntimeDiscovery } from '../runtime/discovery.ts'
 
 const FABRIC_API_VERSION = '1.0.0'
@@ -16,6 +17,8 @@ export type FabricCliCommand =
   | { readonly kind: 'help' }
   | { readonly kind: 'version' }
   | { readonly kind: 'create'; readonly target: string }
+  | { readonly kind: 'migrate'; readonly action: 'analyze'; readonly source: string }
+  | { readonly kind: 'migrate'; readonly action: 'apply'; readonly source: string; readonly output: string }
   | { readonly kind: 'build' | 'test' | 'verify' | 'pack'; readonly cwd: string }
   | { readonly kind: 'dev'; readonly cwd: string; readonly profile: string; readonly dshHome: string }
 
@@ -27,6 +30,17 @@ export function parseFabricCliArgs(argv: readonly string[], cwd = process.cwd())
     const target = rest.find(value => !value.startsWith('-'))
     if (target === undefined) throw new Error('usage: fabric create <name-or-directory>')
     return { kind: 'create', target }
+  }
+  if (command === 'migrate') {
+    const [action, source, ...options] = rest
+    if ((action !== 'analyze' && action !== 'apply') || source === undefined || source.trim() === '') {
+      throw new Error('usage: fabric migrate analyze <source> | fabric migrate apply <source> --out <target>')
+    }
+    if (action === 'analyze' && options.length === 0) return { kind: 'migrate', action, source: resolve(cwd, source) }
+    if (action === 'apply' && options.length === 2 && options[0] === '--out' && options[1] !== undefined && options[1].trim() !== '') {
+      return { kind: 'migrate', action, source: resolve(cwd, source), output: resolve(cwd, options[1]) }
+    }
+    throw new Error('usage: fabric migrate analyze <source> | fabric migrate apply <source> --out <target>')
   }
   if (command === 'build' || command === 'test' || command === 'verify' || command === 'pack') {
     const directoryIndex = rest.findIndex(value => value === '--cwd')
@@ -55,6 +69,8 @@ export function formatFabricCliHelp(): string {
     '',
     'Usage:',
     '  fabric create <name-or-directory>',
+    '  fabric migrate analyze <legacy-source>',
+    '  fabric migrate apply <legacy-source> --out <new-runtime-directory>',
     '  fabric build [--cwd <directory>]',
     '  fabric test [--cwd <directory>]',
     '  fabric verify [--cwd <directory>]',
@@ -300,6 +316,16 @@ export async function runFabricCli(command: FabricCliCommand): Promise<void> {
     const options = parseCreateArgs([command.target])
     const written = await scaffoldPlugin(options)
     process.stdout.write(`created ${options.name} in ${options.directory}\n${written.map(file => `  ${file}`).join('\n')}\n`)
+    return
+  }
+  if (command.kind === 'migrate') {
+    if (command.action === 'analyze') {
+      process.stdout.write(formatFabricMigrationAnalysis(await analyzeLegacyDshPlugin(command.source)))
+      return
+    }
+    const migrated = await applyLegacyDshPluginMigration(command.source, command.output)
+    process.stdout.write(`migrated ${migrated.packageName}@${migrated.version} to ${migrated.directory}\n`)
+    process.stdout.write(`copied ${String(migrated.copiedFiles.length)} source file(s); run pnpm install && pnpm build && fabric verify\n`)
     return
   }
   if (command.kind === 'build') {

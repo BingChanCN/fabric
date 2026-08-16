@@ -83,12 +83,15 @@ fabric pack
 
 `verify` 与 Core 安装器调用同一个 package validator。`pack` 先验证工作目录，执行真实 `npm pack`，再验证最终 tgz。
 
+普通 DSH 插件可先用 `fabric migrate analyze <source>` 做只读迁移评估；只有严格的纯 `shell.overlay` 子集能用 `fabric migrate apply <source> --out <target>` 自动生成 Runtime 包。复杂 Host/Client 行为必须人工迁移，已发布的 DSH bundle 不会被安装时转译。详见 [迁移普通插件](docs/migration.md)。
+
 ## 文档
 
 | 专题 | 内容 |
 |---|---|
 | [插件开发](docs/plugin-development.md) | Runtime manifest、Host/Client、Resource 与构建 |
 | [CLI](docs/cli.md) | create/build/test/verify/dev/pack |
+| [普通插件迁移](docs/migration.md) | analyze/apply 的严格源码迁移子集与阻断条件 |
 | [组件](docs/components.md) | Page、Modal 与 tokens |
 | [Page action 与 Dialog](docs/page-actions-and-dialogs.md) | action、dialog scope 与 HUD |
 | [配置](docs/configuration.md) | typed Config |

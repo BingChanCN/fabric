@@ -9,6 +9,7 @@
 - 新增 Mods 控制面、`fabric create/build/test/verify/dev/pack`、真实 tgz 闸门和 lease-based 开发 overlay。
 - canonical identity 改为完整 npm package name，不再剥 scope；删除 0.x Capability 兼容层和静态 `fabricPlugin()` 构建预设。
 - hello-fabric 与 Fabric Theme Studio 迁为首批 Runtime Package；完整 DSH 双标签页浏览器闸门覆盖 dsh-do 安装、更新/回退、失败候选、开发热换与重启恢复。
+- 新增严格的 `fabric migrate analyze/apply` 源码迁移器：仅自动转换纯 `shell.overlay` → `fabric.hud` 子集，复杂 Host/Client 能力输出带文件行号的 manual/blocked 诊断，不兼容已发布 DSH bundle。
 
 ## 0.7.0
 

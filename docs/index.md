@@ -6,6 +6,7 @@ Fabric 1.0 由两层组成：每个 DSH Profile 只静态加载一份 `@dsh-do/f
 |---|---|
 | [插件开发](plugin-development.md) | Runtime manifest、Host/Client、Resource、构建 |
 | [CLI](cli.md) | create/build/test/verify/dev/pack |
+| [普通插件迁移](migration.md) | 严格源码迁移子集与诊断 |
 | [组件](components.md) | UI 与 `--fabric-*` tokens |
 | [Page action 与 Dialog](page-actions-and-dialogs.md) | action、badge、dialog scope 与 HUD |
 | [配置](configuration.md) | typed Config |
