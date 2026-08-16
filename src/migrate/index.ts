@@ -80,13 +80,21 @@ export interface FabricMigrationApplyResult {
   readonly copiedFiles: readonly string[]
 }
 
-function loadTypeScript(sourceDirectory: string): Ts {
-  const sourceRequire = createRequire(join(sourceDirectory, 'package.json'))
-  try {
-    return sourceRequire('typescript') as Ts
-  } catch {
-    return createRequire(import.meta.url)('typescript') as Ts
+export interface FabricMigrationAnalysisOptions {
+  /** Local source analysis may use the author's installed TypeScript; remote intake must not. */
+  readonly useSourceTypeScript?: boolean
+}
+
+function loadTypeScript(sourceDirectory: string, useSourceTypeScript: boolean): Ts {
+  if (useSourceTypeScript) {
+    const sourceRequire = createRequire(join(sourceDirectory, 'package.json'))
+    try {
+      return sourceRequire('typescript') as Ts
+    } catch {
+      // Fall through to Fabric's known parser when the author project has no TypeScript install.
+    }
   }
+  return createRequire(import.meta.url)('typescript') as Ts
 }
 
 function loadYaml(source: string): unknown {
@@ -676,7 +684,10 @@ async function declarations(root: string, directory: string): Promise<readonly s
   return Object.freeze(result)
 }
 
-export async function analyzeLegacyDshPlugin(directory: string): Promise<FabricMigrationAnalysis> {
+export async function analyzeLegacyDshPlugin(
+  directory: string,
+  options: FabricMigrationAnalysisOptions = {},
+): Promise<FabricMigrationAnalysis> {
   const source = resolve(directory)
   const manifest = await parseManifest(source)
   const diagnostics: FabricMigrationDiagnostic[] = []
@@ -684,7 +695,7 @@ export async function analyzeLegacyDshPlugin(directory: string): Promise<FabricM
   if (manifest.dsh.client === undefined) addDiagnostic(diagnostics, 'manual', 'client-missing', 'Legacy plugin has no dsh.client half; this migration only converts a simple browser overlay', join(source, 'package.json'))
   const entryPath = await firstFile(source, CLIENT_ENTRIES)
   if (entryPath === undefined) addDiagnostic(diagnostics, 'manual', 'client-entry-missing', `Cannot find a supported legacy client entry (${CLIENT_ENTRIES.join(', ')})`, source)
-  const ts = loadTypeScript(source)
+  const ts = loadTypeScript(source, options.useSourceTypeScript !== false)
   let overlay: LegacyOverlay | undefined
   let graph: ClientGraph | undefined
   if (entryPath !== undefined) {
@@ -825,7 +836,7 @@ export async function applyLegacyDshPluginMigration(sourceDirectory: string, out
   assertPortable(analysis)
   if (analysis.clientEntry === undefined || analysis.overlay === undefined) throw new Error('portable migration is missing client data')
   const manifest = await parseManifest(source)
-  const ts = loadTypeScript(source)
+  const ts = loadTypeScript(source, true)
   const entry = await sourceModule(ts, analysis.clientEntry)
   const imported = localNamedImport(ts, entry.source, analysis.overlay.component)
   if (imported === undefined) throw new Error('portable migration component import changed during analysis')

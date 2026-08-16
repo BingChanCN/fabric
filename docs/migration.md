@@ -6,10 +6,14 @@ Fabric 提供一个有限的源码迁移器，把满足严格条件的普通 DSH
 
 ```sh
 fabric migrate analyze D:/work/legacy-plugin
+fabric migrate analyze npm:@scope/legacy-plugin@^1
+fabric migrate analyze file:D:/downloads/legacy-plugin.tgz
 fabric migrate apply D:/work/legacy-plugin --out D:/work/legacy-plugin-runtime
 ```
 
-`analyze` 是只读检查，输出 `portable`、`manual` 或 `blocked`，并给出文件、行号和原因。`apply` 只接受 `portable` 结果；目标目录必须不存在。生成后仍需在目标目录安装依赖并运行：
+`analyze` 是只读检查。它接受本地源码目录、`npm:<spec>` 或 `file:<tgz>`：registry range 会先按当前 npmrc 解析为一个 exact version，再无脚本下载和安全解包真实 tgz。它输出 `native-compatible`、`native-incompatible`、`portable`、`manual`、`blocked`、`source-missing` 或 `not-dsh-plugin`，并给出文件、行号和原因。
+
+`native-compatible` 不是只看 metadata：真实包必须通过与 Core 安装器相同的 Runtime admission validator。`portable`、`manual` 和 `blocked` 只表示 legacy 源码分析结论；它们不把旧包伪装成可热装 Runtime Package。`apply` 只接受本地目录的 `portable` 结果；目标目录必须不存在。生成后仍需在目标目录安装依赖并运行：
 
 ```sh
 pnpm install
@@ -17,7 +21,7 @@ pnpm build
 fabric verify
 ```
 
-迁移器不会自动执行 `npm install`、生命周期脚本或旧插件代码。
+迁移器不会自动执行 `npm install`、生命周期脚本或旧插件代码。为维持 Runtime 下载信任模型，它不接受 Git URL；先把 Git checkout 放到本地目录再分析。
 
 ## 自动范围
 
@@ -43,4 +47,4 @@ fabric verify
 
 以下情况直接报告 `blocked`：Cordis patch 修改 profile 中其他内容、Client 导入 `@deepseek-ai/*` 或 Node builtin、局部依赖越出源目录、入口/组件文件无法解析，或 YAML/manifest 不合法。
 
-已经发布的普通 DSH bundle 不能被 Fabric 安装器直接转译。它们仍按 DSH profile bundle 安装；迁移器的输入必须是本地可分析源码。
+已经发布的普通 DSH bundle 不能被 Fabric 安装器直接转译。它们仍按 DSH profile bundle 安装。只有 tgz 内包含可分析源码且结果为 `portable`，作者才可在本地生成新的 Runtime Package；`manual`、`blocked` 或 `source-missing` 都不能进入 Runtime 安装路径。

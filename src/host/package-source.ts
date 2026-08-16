@@ -11,6 +11,8 @@ const ARCHIVE_ENTRY_TYPES = new Set(['File', 'OldFile', 'ContiguousFile', 'Direc
 
 export interface FabricResolvedPackageSource {
   readonly kind: 'directory' | 'archive'
+  /** Resolver fact used by callers that must distinguish registry and local trust boundaries. */
+  readonly provenance: 'directory' | 'file' | 'registry'
   readonly source: string
   readonly directory?: string
   readonly fetchSpec?: string
@@ -70,7 +72,7 @@ export async function resolveFabricPackageSource(
 
   if (parsed.type === 'directory') {
     if (parsed.fetchSpec === undefined) throw new Error(`Runtime Package source "${requested}" has no directory path`)
-    return { kind: 'directory', source: localSource(parsed.fetchSpec), directory: resolve(parsed.fetchSpec) }
+    return { kind: 'directory', provenance: 'directory', source: localSource(parsed.fetchSpec), directory: resolve(parsed.fetchSpec) }
   }
 
   const fetcher = options.fetcher ?? defaultFetcher
@@ -81,6 +83,7 @@ export async function resolveFabricPackageSource(
     throwIfAborted(options.signal)
     return {
       kind: 'archive',
+      provenance: 'file',
       source: localSource(path),
       fetchSpec: path,
       expectedName: manifest.name,
@@ -103,6 +106,7 @@ export async function resolveFabricPackageSource(
     }
     return {
       kind: 'archive',
+      provenance: 'registry',
       source: requested,
       fetchSpec: `${manifest.name}@${manifest.version}`,
       expectedName: manifest.name,

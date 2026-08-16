@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { create } from 'tar'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const cli = join(root, 'lib', 'cli.js')
@@ -33,6 +34,9 @@ try {
   await writeFile(join(source, 'client', 'StatusHud.module.css'), '.status { color: #b42318; }\n')
 
   run(['migrate', 'analyze', source])
+  const archive = join(temp, 'legacy.tgz')
+  await create({ cwd: source, file: archive, gzip: true, prefix: 'package/' }, ['package.json', 'cordis.patch.yml', 'src', 'client'])
+  run(['migrate', 'analyze', `file:${archive}`])
   run(['migrate', 'apply', source, '--out', output])
   const link = join(output, 'node_modules', '@dsh-do', 'fabric')
   const tsdown = join(output, 'node_modules', 'tsdown')

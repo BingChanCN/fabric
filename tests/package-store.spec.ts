@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   FabricInventoryStore, FabricPackageStore, LocalFabricPackageManager,
 } from '../src/host/package-store.ts'
-import type { FabricPackageFetcher } from '../src/host/package-source.ts'
+import { resolveFabricPackageSource, type FabricPackageFetcher } from '../src/host/package-source.ts'
 
 const profiles: string[] = []
 
@@ -174,6 +174,23 @@ describe('Fabric local Runtime Package store', () => {
     const installed = await manager.install(`file:${archive}`)
 
     expect(installed.entry).toMatchObject({ version: '1.2.0', source: `file:${archive.replaceAll('\\', '/')}` })
+  })
+
+  it('retains explicit file and registry source provenance', async () => {
+    const archive = await packPackage(await makePackage('1.3.0'))
+
+    const file = await resolveFabricPackageSource(`file:${archive}`)
+    const registry = await resolveFabricPackageSource('@example/weather@^1', {
+      fetcher: {
+        manifest: async () => ({ name: '@example/weather', version: '1.3.0', _integrity: 'sha512-test' }),
+        tarballFile: async () => {
+          throw new Error('resolution must not fetch the archive')
+        },
+      },
+    })
+
+    expect(file).toMatchObject({ kind: 'archive', provenance: 'file', expectedName: '@example/weather', expectedVersion: '1.3.0' })
+    expect(registry).toMatchObject({ kind: 'archive', provenance: 'registry', expectedName: '@example/weather', expectedVersion: '1.3.0' })
   })
 
   it('resolves an npm range to one exact archive while retaining the requested update source', async () => {

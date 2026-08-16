@@ -8,7 +8,8 @@ import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { scaffoldPlugin, parseCreateArgs } from '../create/index.ts'
 import { FabricInventoryStore, FabricPackageStore } from '../host/package-store.ts'
-import { analyzeLegacyDshPlugin, applyLegacyDshPluginMigration, formatFabricMigrationAnalysis } from '../migrate/index.ts'
+import { applyLegacyDshPluginMigration } from '../migrate/index.ts'
+import { analyzeFabricPackageIntake, formatFabricPackageIntakeAnalysis } from '../migrate/intake.ts'
 import { parseFabricRuntimeDiscovery } from '../runtime/discovery.ts'
 
 const FABRIC_API_VERSION = '1.0.0'
@@ -36,8 +37,19 @@ export function parseFabricCliArgs(argv: readonly string[], cwd = process.cwd())
     if ((action !== 'analyze' && action !== 'apply') || source === undefined || source.trim() === '') {
       throw new Error('usage: fabric migrate analyze <source> | fabric migrate apply <source> --out <target>')
     }
-    if (action === 'analyze' && options.length === 0) return { kind: 'migrate', action, source: resolve(cwd, source) }
+    if (action === 'analyze' && options.length === 0) {
+      if (source.startsWith('npm:')) return { kind: 'migrate', action, source }
+      if (source.startsWith('file:')) {
+        const path = source.slice('file:'.length)
+        if (path.trim() === '') throw new Error('file migration source must name an archive or directory')
+        return { kind: 'migrate', action, source: `file:${resolve(cwd, path)}` }
+      }
+      return { kind: 'migrate', action, source: resolve(cwd, source) }
+    }
     if (action === 'apply' && options.length === 2 && options[0] === '--out' && options[1] !== undefined && options[1].trim() !== '') {
+      if (source.startsWith('npm:') || source.startsWith('file:')) {
+        throw new Error('fabric migrate apply only accepts a local source directory')
+      }
       return { kind: 'migrate', action, source: resolve(cwd, source), output: resolve(cwd, options[1]) }
     }
     throw new Error('usage: fabric migrate analyze <source> | fabric migrate apply <source> --out <target>')
@@ -69,7 +81,7 @@ export function formatFabricCliHelp(): string {
     '',
     'Usage:',
     '  fabric create <name-or-directory>',
-    '  fabric migrate analyze <legacy-source>',
+    '  fabric migrate analyze <legacy-source | npm:<package-spec> | file:<archive.tgz>>',
     '  fabric migrate apply <legacy-source> --out <new-runtime-directory>',
     '  fabric build [--cwd <directory>]',
     '  fabric test [--cwd <directory>]',
@@ -320,7 +332,7 @@ export async function runFabricCli(command: FabricCliCommand): Promise<void> {
   }
   if (command.kind === 'migrate') {
     if (command.action === 'analyze') {
-      process.stdout.write(formatFabricMigrationAnalysis(await analyzeLegacyDshPlugin(command.source)))
+      process.stdout.write(formatFabricPackageIntakeAnalysis(await analyzeFabricPackageIntake(command.source)))
       return
     }
     const migrated = await applyLegacyDshPluginMigration(command.source, command.output)

@@ -23,10 +23,12 @@ scoped 名创建短目录（`my-plugin`），但 canonical package identity 始�
 
 ```sh
 fabric migrate analyze D:/work/legacy-plugin
+fabric migrate analyze npm:@scope/legacy-plugin@^1
+fabric migrate analyze file:D:/downloads/legacy-plugin.tgz
 fabric migrate apply D:/work/legacy-plugin --out D:/work/legacy-plugin-runtime
 ```
 
-这组命令只分析本地源码。`analyze` 会输出 `portable`、`manual` 或 `blocked` 以及文件/行号证据；`apply` 只接受严格的纯 `shell.overlay` 子集，生成新的 Fabric HUD Runtime Package，不改源目录也不覆盖目标目录。复杂 Host 行为、DSH 私有模块、Settings/Agent/Session 能力、资源 URL 和已发布 tgz 不会被自动转换。生成包仍需执行 `pnpm install && pnpm build && fabric verify`。
+`analyze` 可读取本地源码、npm registry 包或本地 tgz，但永不执行 lifecycle script。npm range 会解析为实际 exact version，并从真实 tgz 判断 `native-compatible`、`native-incompatible`、`portable`、`manual`、`blocked`、`source-missing` 或 `not-dsh-plugin`；原生结论会重新走 Core admission validator。`apply` 始终只接受本地目录的严格纯 `shell.overlay` 子集，生成新的 Fabric HUD Runtime Package，不改源目录也不覆盖目标目录。复杂 Host 行为、DSH 私有模块、Settings/Agent/Session 能力、资源 URL 和已发布 tgz 不会被自动转换；Git URL 也不在支持范围。生成包仍需执行 `pnpm install && pnpm build && fabric verify`。
 
 详细范围见 [普通插件迁移](migration.md)。
 
